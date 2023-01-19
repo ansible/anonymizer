@@ -30,7 +30,16 @@ Library to clean up Ansible tasks from any Personally Identifiable Information (
 Features
 --------
 
-* TODO
+.. code-block::
+
+   $ python3
+   Python 3.9.16 (main, Dec  7 2022, 00:00:00)
+   [GCC 12.2.1 20221121 (Red Hat 12.2.1-4)] on linux
+   Type "help", "copyright", "credits" or "license" for more information.
+   >>> from anonymizor import anonymizor
+   >>> example = ["- name: foo bar\n  email: my-email@address.com\n"]
+   >>> anonymizor.anonymize(example)
+   ['- email: lucas27@example.com\n  name: foo bar\n']
 
 Credits
 -------
