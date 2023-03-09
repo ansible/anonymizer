@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ansible-wisdom-anonymisor"
+description = "Ansible Wisdom Anonymisor"
+readme = "README.rst"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dynamic = ["version"]
+
+
+[project.optional-dependencies]
+test = [
+    "tox",
+]
+
+[tool]
+
+[tool.setuptools]
+packages = ["anonymizor"]
+
+[tool.setuptools.dynamic]
+version = {attr = "anonymizor.__version__"}
+
+[tool.black]
+line-length = 100
+fast = true
+skip-string-normalization = true
+
+[tool.isort]
+profile = "black"

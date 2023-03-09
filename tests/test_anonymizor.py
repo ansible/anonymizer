@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
+from ipaddress import IPv4Address
+from ipaddress import IPv4Network
+from ipaddress import IPv6Address
 
-from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
-import yaml
-
-from anonymizor.anonymizor import (
-    is_jinja2,
-    is_path,
-    is_email_address,
-    is_date,
-    is_password,
-    sensitive_field_name,
-    redact_ipv4_address,
-    remove_email,
-    redact_ipv4_address,
-    redact_ipv6_address,
-    redact_ip_address,
-    anonymize_field,
-    walker,
-    anonymize,
-)
+from anonymizor.anonymizor import is_email_address
+from anonymizor.anonymizor import is_jinja2
+from anonymizor.anonymizor import is_password_field_name
+from anonymizor.anonymizor import is_valid_ssn
+from anonymizor.anonymizor import is_valid_macaddress
+from anonymizor.anonymizor import is_path
+from anonymizor.anonymizor import redact_ip_address
+from anonymizor.anonymizor import redact_ipv4_address
+from anonymizor.anonymizor import redact_ipv6_address
+from anonymizor.anonymizor import remove_email
+from anonymizor.anonymizor import walker
+from anonymizor.anonymizor import anonymize
 
 
 def test_is_jinja2():
@@ -32,6 +28,7 @@ def test_is_path():
     assert is_path("~/.ssh/id_rsa.pub") is True
     assert is_path(".%/mypassword/f$b") is False
     assert is_path("certificates/CA.key") is True
+    assert is_path("a_password") is False
 
 
 def test_is_email_address():
@@ -42,22 +39,25 @@ def test_is_email_address():
     assert is_email_address("some text with an email  a@somewhe.social  fff") is True
 
 
-def test_is_date():
-    assert is_date("2022-01-19 23:59:59") is True
-    assert is_date("Internal Users") is False
+def test_is_password_field_name():
+    assert is_password_field_name("login") is False
+    assert is_password_field_name("password") is True
+    assert is_password_field_name("passwd") is True
+    assert is_password_field_name("db_passwd") is True
+    assert is_password_field_name("key_data") is True
+    assert is_password_field_name("key_name") is True
+    assert is_password_field_name("host_config_key") is True
 
 
-def test_is_password() -> bool:
-    assert is_password("foobar") is False
-    assert is_password("1!!3@foobar%") is True
+def test_is_valid_ssn():
+    assert is_valid_ssn("") is False
+    assert is_valid_ssn("078-05-1120") is True
 
 
-def test_sensitive_field_name():
-    assert sensitive_field_name("login") is False
-    assert sensitive_field_name("password") is True
-    assert sensitive_field_name("passwd") is True
-    assert sensitive_field_name("db_passwd") is True
-    assert sensitive_field_name("db_passwd") is True
+def test_is_valid_macaddress():
+    assert is_valid_macaddress("") is False
+    assert is_valid_macaddress("06:27:c7:") is False
+    assert is_valid_macaddress("a0:ce:c8:61:eb:54") is True
 
 
 def test_remove_email():
@@ -67,24 +67,19 @@ def test_remove_email():
 
 
 def test_redact_ipv4_address():
-    assert redact_ipv4_address(IPv4Address("192.168.3.5")) in IPv4Network(
-        "192.168.3.0/24"
-    )
-    assert redact_ipv4_address(IPv4Address("8.8.8.8")) == "8.8.8.8"
+    assert redact_ipv4_address(IPv4Address("192.168.3.5")) in IPv4Network("192.168.3.0/24")
+    assert redact_ipv4_address(IPv4Address("8.8.8.8")) == IPv4Address("8.8.8.8")
     assert redact_ipv4_address(IPv4Address("8.8.8.9")) in IPv4Network("8.8.8.0/24")
 
 
 def test_redact_ipv6_address():
-    assert (
-        redact_ipv6_address(IPv6Address("2001:4860:4860::8888"))
-        == "2001:4860:4860::8888"
+    assert redact_ipv6_address(IPv6Address("2001:4860:4860::8888")) == IPv6Address(
+        "2001:4860:4860::8888"
     )
-    assert IPv6Address(
-        redact_ipv6_address(IPv6Address("2001:db8:3333:4444:5555:6666:7777:8888"))
-    )
+    assert IPv6Address(redact_ipv6_address(IPv6Address("2001:db8:3333:4444:5555:6666:7777:8888")))
 
 
-def test_refact_ip_address():
+def test_redact_ip_address():
     assert redact_ip_address("2001:4860:4860::8888") == "2001:4860:4860::8888"
     assert IPv4Address(redact_ip_address("8.8.8.9"))
 
@@ -93,6 +88,8 @@ def test_walker():
     in_ = {
         "name": "Install nginx and nodejs 12",
         "apt": {"name": ["nginx", "nodejs"], "state": "latest"},
+        "a_set": {1, 2, 3},
+        "dict_wit_with_int_as_index": {1: "1", 2: "2", 3: "3"},
     }
     assert walker(in_) == in_
 
@@ -106,27 +103,12 @@ def test_walker():
     changed = walker(in_)
     assert "foo@montreal.ca" not in changed["name"]
     assert "2001:460:48::888" not in changed["a_module"]["ip"]
-    assert "@This" not in changed["a_module"]["password"]
+    assert changed["a_module"]["password"] == "{{ }}"
+
+    in_ = {"password": ["first_password", "second_password"]}
+    assert walker(in_) == {"password": ["{{ }}", "{{ }}"]}
 
 
-def test_anonymize_no_change():
-    sample = [
-        "- name: Install nginx and nodejs 12 Packages\n"
-        "  apt:\n"
-        "    name:\n"
-        "    - nginx\n"
-        "    - nodejs\n"
-        "    state: latest\n"
-    ]
-    y = yaml.safe_load
-    assert y(anonymize(sample)[0]) == y(sample[0])
-
-
-def test_anonymize_with_change():
-    sample = ["- name: foo@bar.com\n  password: 'admin'\n  ipv4: '10.13.1.3 '\n"]
-    result = anonymize(sample)
-    new_values = yaml.safe_load(result[0])[0]
-    assert "foo@bar.com" not in new_values["name"]
-    assert new_values["password"] == "admin"
-    assert new_values["ipv4"].startswith("10.13")
-    assert new_values["ipv4"] != "10.13.1.3"
+def test_anonymize():
+    my_struct = {"foo": "bar"}
+    assert anonymize([my_struct]) == [my_struct]
