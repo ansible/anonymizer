@@ -16,6 +16,8 @@ from anonymizor.anonymizor import remove_email
 from anonymizor.anonymizor import walker
 from anonymizor.anonymizor import anonymize
 
+import pytest
+
 
 def test_is_jinja2():
     assert is_jinja2("  {{\n\nfoo\n   }}\n  \n") is True
@@ -112,3 +114,5 @@ def test_walker():
 def test_anonymize():
     my_struct = {"foo": "bar"}
     assert anonymize([my_struct]) == [my_struct]
+    with pytest.raises(ValueError):
+        assert anonymize(my_struct)
