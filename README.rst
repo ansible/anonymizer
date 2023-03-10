@@ -26,6 +26,6 @@ Features
    [GCC 12.2.1 20221121 (Red Hat 12.2.1-4)] on linux
    Type "help", "copyright", "credits" or "license" for more information.
    >>> from anonymizor import anonymizor
-   >>> example = ["- name: foo bar\n  email: my-email@address.com\n"]
+   >>> example = [{"name": "foo bar", "email": "my-email@address.com"}]
    >>> anonymizor.anonymize(example)
    ['- email: lucas27@example.com\n  name: foo bar\n']

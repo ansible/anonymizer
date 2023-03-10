@@ -242,8 +242,13 @@ def walker(o: Any, key_name: str = "") -> Any:
 
 
 def anonymize(predictions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    def cleanup(p: Any) -> Any:
-        py_struct = p
+    if not isinstance(predictions, list):
+        raise ValueError
+
+    def cleanup(py_struct: Any) -> Any:
+        if not isinstance(py_struct, dict):
+            raise ValueError
+
         clean = walker(py_struct)
         return clean
 
