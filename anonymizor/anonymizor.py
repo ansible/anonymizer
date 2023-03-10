@@ -226,30 +226,16 @@ def is_path(content: str) -> bool:
     return bool(re.match(r"^(|~)[a-z0-9_/\.-]+$", content, flags=re.IGNORECASE))
 
 
-def walker(o: Any, key_name: str = "") -> Any:
+def anonymize(o: Any, key_name: str = "") -> Any:
     def key_name_str(k: Any) -> str:
         return k if isinstance(k, str) else ""
 
     if key_name and not isinstance(key_name, str):
         key_name = str(key_name)
     if isinstance(o, dict):
-        return {k: walker(v, key_name=key_name_str(k)) for k, v in o.items()}
+        return {k: anonymize(v, key_name=key_name_str(k)) for k, v in o.items()}
     elif isinstance(o, list):
-        return [walker(v, key_name=key_name) for v in o]
+        return [anonymize(v, key_name=key_name) for v in o]
     elif isinstance(o, str):
         return anonymize_field(o, key_name)
     return o
-
-
-def anonymize(predictions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    if not isinstance(predictions, list):
-        raise ValueError
-
-    def cleanup(py_struct: Any) -> Any:
-        if not isinstance(py_struct, dict):
-            raise ValueError
-
-        clean = walker(py_struct)
-        return clean
-
-    return [cleanup(p) for p in predictions]

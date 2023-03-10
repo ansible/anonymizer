@@ -13,7 +13,6 @@ from anonymizor.anonymizor import redact_ip_address
 from anonymizor.anonymizor import redact_ipv4_address
 from anonymizor.anonymizor import redact_ipv6_address
 from anonymizor.anonymizor import remove_email
-from anonymizor.anonymizor import walker
 from anonymizor.anonymizor import anonymize
 
 import pytest
@@ -86,14 +85,14 @@ def test_redact_ip_address():
     assert IPv4Address(redact_ip_address("8.8.8.9"))
 
 
-def test_walker():
+def test_anonymize():
     in_ = {
         "name": "Install nginx and nodejs 12",
         "apt": {"name": ["nginx", "nodejs"], "state": "latest"},
         "a_set": {1, 2, 3},
         "dict_wit_with_int_as_index": {1: "1", 2: "2", 3: "3"},
     }
-    assert walker(in_) == in_
+    assert anonymize(in_) == in_
 
     in_ = {
         "name": "foo@montreal.ca",
@@ -102,17 +101,25 @@ def test_walker():
             "password": "@This-should-disapear!",
         },
     }
-    changed = walker(in_)
+    changed = anonymize(in_)
     assert "foo@montreal.ca" not in changed["name"]
     assert "2001:460:48::888" not in changed["a_module"]["ip"]
     assert changed["a_module"]["password"] == "{{ }}"
 
     in_ = {"password": ["first_password", "second_password"]}
-    assert walker(in_) == {"password": ["{{ }}", "{{ }}"]}
+    assert anonymize(in_) == {"password": ["{{ }}", "{{ }}"]}
 
+    # Str
+    in_ = "my-email-address@somewhe.re"
+    changed = anonymize(in_)
+    assert in_ not in changed
+    assert isinstance(changed, str)
+    assert "@" in changed
 
-def test_anonymize():
-    my_struct = {"foo": "bar"}
-    assert anonymize([my_struct]) == [my_struct]
-    with pytest.raises(ValueError):
-        assert anonymize(my_struct)
+    # List
+    in_ = ["my-email-address@somewhe.re"]
+    changed = anonymize(in_)
+    print(changed)
+    assert in_ != changed
+    assert isinstance(changed[0], str)
+    assert "@" in changed[0]
