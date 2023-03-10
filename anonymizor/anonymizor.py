@@ -123,8 +123,15 @@ def is_valid_telephone_number(value: str) -> bool:
 
 
 def is_valid_credit_card_number(value: str) -> bool:
+    def luhn(n):
+        r = [int(ch) for ch in str(n)][::-1]
+        return (sum(r[0::2]) + sum(sum(divmod(d * 2, 10)) for d in r[1::2])) % 10 == 0
+
     cc_regex = r"\b(?:\d[ -]*?){13,16}\b"
-    return re.search(cc_regex, value) is not None
+    for candidate in re.findall(cc_regex, value):
+        if luhn(candidate):
+            return True
+    return False
 
 
 def remove_email(value: str) -> str:

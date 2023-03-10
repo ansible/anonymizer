@@ -8,6 +8,8 @@ from anonymizor.anonymizor import is_jinja2
 from anonymizor.anonymizor import is_password_field_name
 from anonymizor.anonymizor import is_valid_ssn
 from anonymizor.anonymizor import is_valid_macaddress
+from anonymizor.anonymizor import is_valid_telephone_number
+from anonymizor.anonymizor import is_valid_credit_card_number
 from anonymizor.anonymizor import is_path
 from anonymizor.anonymizor import redact_ip_address
 from anonymizor.anonymizor import redact_ipv4_address
@@ -59,6 +61,24 @@ def test_is_valid_macaddress():
     assert is_valid_macaddress("") is False
     assert is_valid_macaddress("06:27:c7:") is False
     assert is_valid_macaddress("a0:ce:c8:61:eb:54") is True
+
+
+def test_is_valid_telephone_number():
+    assert is_valid_telephone_number("") is False
+    assert is_valid_telephone_number("(914) 499-1900") is True
+    assert is_valid_telephone_number("914-499-1900") is True
+    assert is_valid_telephone_number("914 499-1900") is True
+    assert is_valid_telephone_number("9144991900") is True
+    assert is_valid_telephone_number("19144991900") is True
+
+
+def test_is_valid_credit_card_number():
+    assert is_valid_credit_card_number("") is False
+    assert is_valid_credit_card_number("4485896627975888") is True
+    assert is_valid_credit_card_number("49927398716") is False
+    assert is_valid_credit_card_number("49927398717") is False
+    assert is_valid_credit_card_number("1234567812345678") is False
+    assert is_valid_credit_card_number("1234567812345670") is True
 
 
 def test_remove_email():
