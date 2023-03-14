@@ -3,41 +3,22 @@ from ipaddress import IPv4Address
 from ipaddress import IPv4Network
 from ipaddress import IPv6Address
 
-from anonymizor.anonymizor import is_email_address
-from anonymizor.anonymizor import is_jinja2
 from anonymizor.anonymizor import is_password_field_name
-from anonymizor.anonymizor import is_valid_ssn
-from anonymizor.anonymizor import is_valid_macaddress
-from anonymizor.anonymizor import is_valid_telephone_number
-from anonymizor.anonymizor import is_valid_credit_card_number
 from anonymizor.anonymizor import is_path
 from anonymizor.anonymizor import redact_ip_address
 from anonymizor.anonymizor import redact_ipv4_address
 from anonymizor.anonymizor import redact_ipv6_address
-from anonymizor.anonymizor import remove_email
 from anonymizor.anonymizor import anonymize
+from anonymizor.anonymizor import anonymize_struct
+from anonymizor.anonymizor import anonymize_text_block
 
-
-def test_is_jinja2():
-    assert is_jinja2("  {{\n\nfoo\n   }}\n  \n") is True
-    assert is_jinja2("  {%\n\nfoo\n   %}\n  \n") is True
-
-
-def test_is_path():
-    assert is_path("/etc/fstab") is True
-    assert is_path("./opt/fstab") is True
-    assert is_path("~/.ssh/id_rsa.pub") is True
-    assert is_path(".%/mypassword/f$b") is False
-    assert is_path("certificates/CA.key") is True
-    assert is_path("a_password") is False
-
-
-def test_is_email_address():
-    assert is_email_address("contact@.somewhe.re") is True
-    assert is_email_address("contact@somewhe.re") is True
-    assert is_email_address("contact.somewhe.re") is False
-    assert is_email_address("été@somewhe.social") is True
-    assert is_email_address("some text with an email  a@somewhe.social  fff") is True
+from anonymizor.anonymizor import hide_emails
+from anonymizor.anonymizor import hide_secrets
+from anonymizor.anonymizor import hide_ip_addresses
+from anonymizor.anonymizor import hide_us_ssn
+from anonymizor.anonymizor import hide_mac_addresses
+from anonymizor.anonymizor import hide_us_phone_numbers
+from anonymizor.anonymizor import hide_credit_cards
 
 
 def test_is_password_field_name():
@@ -50,39 +31,13 @@ def test_is_password_field_name():
     assert is_password_field_name("host_config_key") is True
 
 
-def test_is_valid_ssn():
-    assert is_valid_ssn("") is False
-    assert is_valid_ssn("078-05-1120") is True
-
-
-def test_is_valid_macaddress():
-    assert is_valid_macaddress("") is False
-    assert is_valid_macaddress("06:27:c7:") is False
-    assert is_valid_macaddress("a0:ce:c8:61:eb:54") is True
-
-
-def test_is_valid_telephone_number():
-    assert is_valid_telephone_number("") is False
-    assert is_valid_telephone_number("(914) 499-1900") is True
-    assert is_valid_telephone_number("914-499-1900") is True
-    assert is_valid_telephone_number("914 499-1900") is True
-    assert is_valid_telephone_number("9144991900") is True
-    assert is_valid_telephone_number("19144991900") is True
-
-
-def test_is_valid_credit_card_number():
-    assert is_valid_credit_card_number("") is False
-    assert is_valid_credit_card_number("4485896627975888") is True
-    assert is_valid_credit_card_number("49927398716") is False
-    assert is_valid_credit_card_number("49927398717") is False
-    assert is_valid_credit_card_number("1234567812345678") is True
-    assert is_valid_credit_card_number("1234567812345670") is True
-
-
-def test_remove_email():
-    assert remove_email("fooo@bar.email").endswith("example.com")
-    assert remove_email("foo") == "foo"
-    assert "foo.bar@bar.re" not in remove_email("fo foo.bar@bar.re o")
+def test_is_path():
+    assert is_path("/etc/fstab") is True
+    assert is_path("./opt/fstab") is True
+    assert is_path("~/.ssh/id_rsa.pub") is True
+    assert is_path(".%/mypassword/f$b") is False
+    assert is_path("certificates/CA.key") is True
+    assert is_path("a_password") is False
 
 
 def test_redact_ipv4_address():
@@ -103,14 +58,14 @@ def test_redact_ip_address():
     assert IPv4Address(redact_ip_address("8.8.8.9"))
 
 
-def test_anonymize():
+def test_anonymize_struct():
     in_ = {
         "name": "Install nginx and nodejs 12",
         "apt": {"name": ["nginx", "nodejs"], "state": "latest"},
         "a_set": {1, 2, 3},
         "dict_wit_with_int_as_index": {1: "1", 2: "2", 3: "3"},
     }
-    assert anonymize(in_) == in_
+    assert anonymize_struct(in_) == in_
 
     in_ = {
         "name": "foo@montreal.ca",
@@ -119,25 +74,215 @@ def test_anonymize():
             "password": "@This-should-disapear!",
         },
     }
-    changed = anonymize(in_)
+    changed = anonymize_struct(in_)
     assert "foo@montreal.ca" not in changed["name"]
     assert "2001:460:48::888" not in changed["a_module"]["ip"]
     assert changed["a_module"]["password"] == "{{ }}"
 
     in_ = {"password": ["first_password", "second_password"]}
-    assert anonymize(in_) == {"password": ["{{ }}", "{{ }}"]}
+    assert anonymize_struct(in_) == {"password": ["{{ }}", "{{ }}"]}
 
     # Str
     in_ = "my-email-address@somewhe.re"
-    changed = anonymize(in_)
+    changed = anonymize_struct(in_)
     assert in_ not in changed
     assert isinstance(changed, str)
     assert "@" in changed
 
     # List
     in_ = ["my-email-address@somewhe.re"]
-    changed = anonymize(in_)
-    print(changed)
+    changed = anonymize_struct(in_)
     assert in_ != changed
     assert isinstance(changed[0], str)
     assert "@" in changed[0]
+
+
+def test_anonymize():
+    in_ = ["my-email-address@somewhe.re"]
+    changed = anonymize(in_)
+    assert in_ != changed
+
+
+def test_anonymize_text_block_secret_fields():
+    source = """
+
+        - name: some example
+            a-broken-key:
+                my-secret: a-secret
+                private_key: ~/.ssh/id_rsa
+
+    """
+    expectation = """
+
+        - name: some example
+            a-broken-key:
+                my-secret: {{ }}
+                private_key: ~/.ssh/id_rsa
+
+    """
+    assert hide_secrets(source) == expectation
+    assert anonymize_text_block(source) == expectation
+
+
+def test_anonymize_text_block_email_addresses():
+    source = """
+
+        - name: some example
+            a-broken-key:
+                emails: - fooo@bar.ca
+                - pierre-loup@some.company
+                - christina@world.corp
+                - "christina@world.corp"
+                - 'christina@world.corp'
+
+    """
+    expectation = """
+
+        - name: some example
+            a-broken-key:
+                emails: - lucas14@example.com
+                - elijah6@example.com
+                - evelyn17@example.com
+                - "evelyn17@example.com"
+                - 'evelyn17@example.com'
+
+    """
+    assert hide_emails(source) == expectation
+    assert anonymize_text_block(source) == expectation
+
+
+def test_anonymize_text_block_ip_addresses():
+    source = """
+
+        - name: some example
+            this-should-remain: 8.8.8.8
+            a-broken-key:
+                some-random-ips: - fda4:597b:21fc:d31f::
+                - 23.233.103.236
+                - 192.168.10.34
+                - 192.168.10.34/32
+                - fda4:597b:21fc:d31f::/128
+    """
+    expectation = """
+
+        - name: some example
+            this-should-remain: 8.8.8.8
+            a-broken-key:
+                some-random-ips: - fda4:17b:1fc:31f::
+                - 23.233.104.40
+                - 192.168.10.48
+                - 192.168.10.48/32
+                - fda4:17b:1fc:31f::/128
+    """
+    assert anonymize_text_block(source) == expectation
+    assert hide_ip_addresses(source) == expectation
+
+
+def test_anonymize_text_block_us_ssn():
+    source = """
+
+    - copy:
+        content: |
+          here some content with a ssn "078-05-1120"
+          and this is pi: 3.1415926535897936
+
+    """
+
+    expectation = """
+
+    - copy:
+        content: |
+          here some content with a ssn "{{ }}"
+          and this is pi: 3.1415926535897936
+
+    """
+    assert anonymize_text_block(source) == expectation
+    assert hide_us_ssn(source) == expectation
+
+
+def test_anonymize_text_block_macaddress():
+    source = """
+
+    - copy:
+        content: |
+          some mac addresses "a0:36:9f:0e:9d:78"
+          or A0-36-9F-0E-9D-78
+          or A036.9F0E.9D78
+          and this is pi: 3.1415926535897936
+
+    """
+
+    expectation = """
+
+    - copy:
+        content: |
+          some mac addresses "5b:e1:4a:b9:48:23"
+          or f5-8b-e4-53-e2-cd
+          or 39cf.2897.2601
+          and this is pi: 3.1415926535897936
+
+    """
+    assert anonymize_text_block(source) == expectation
+    assert hide_mac_addresses(source) == expectation
+
+
+def test_anonymize_text_block_us_phone_numbers():
+    source = """
+
+    - copy:
+        content: |
+            (914) 499-1900
+            "914-499-1900"
+            "914 499-1900"
+            9144991900
+            19144991900
+          and this is pi: 3.1415926535897936
+
+    """
+
+    expectation = """
+
+    - copy:
+        content: |
+            (311) 555-2368
+            "(311) 555-2368"
+            "(311) 555-2368"
+            (311) 555-2368
+            (311) 555-2368
+          and this is pi: 3.1415926535897936
+
+    """
+    assert anonymize_text_block(source) == expectation
+    assert hide_us_phone_numbers(source) == expectation
+
+
+def test_anonymize_text_block_credit_cards():
+    source = """
+
+    - copy:
+        content: |
+          a_quoted_cc_number("1234567812345670")
+          1234567812345670
+          (1234567812345670)
+          "1234567812345670"
+          "1234 5678 1234 5670"
+          "1234-5678-1234-5670"
+          and this is pi: 3.1415926535897936
+
+    """
+
+    expectation = """
+
+    - copy:
+        content: |
+          a_quoted_cc_number("{{ }}")
+          {{ }}
+          ({{ }})
+          "{{ }}"
+          "{{ }}"
+          "{{ }}"
+          and this is pi: 3.1415926535897936
+
+    """
+    assert anonymize_text_block(source) == expectation
+    assert hide_credit_cards(source) == expectation

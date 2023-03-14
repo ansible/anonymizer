@@ -19,13 +19,25 @@ Library to clean up Ansible tasks from any Personally Identifiable Information (
 Features
 --------
 
+The library can be used to remove the PII from a multi level structure:
+
 .. code-block::
 
    $ python3
-   Python 3.9.16 (main, Dec  7 2022, 00:00:00)
-   [GCC 12.2.1 20221121 (Red Hat 12.2.1-4)] on linux
-   Type "help", "copyright", "credits" or "license" for more information.
    >>> from anonymizor import anonymizor
    >>> example = [{"name": "foo bar", "email": "my-email@address.com"}]
-   >>> anonymizor.anonymize(example)
+   >>> anonymizor.anonymize_struct(example)
    ['- email: lucas27@example.com\n  name: foo bar\n']
+
+But you can also anonymize a block of text:
+
+.. code-block::
+
+   >>> from anonymizor import anonymizor
+   >>> some_text = """
+   ... - name: a task
+   ...   a_module:
+   ...     secret: foobar
+   ... """
+   >>> anonymizor.anonymize_text_block(some_text)
+   '\n- name: a task\n  a_module:\n    secret: {{ }}\n'
