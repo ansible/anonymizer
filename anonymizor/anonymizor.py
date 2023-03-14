@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import ipaddress
-import random
+from zlib import crc32
 import re
 from ipaddress import IPv4Address
 from ipaddress import IPv6Address
@@ -8,6 +8,7 @@ from typing import Callable
 from typing import Match
 from typing import Union
 from typing import Any
+from typing import Generator
 
 # Denylist regex to TC of secrets filter
 # From detect_secrets.plugins (Apache v2 License)
@@ -36,8 +37,6 @@ DENYLIST = (
     "contrasena",
     "access_key",
 )
-# Includes ], ', " as closing
-CLOSING = r'[]\'"]{0,2}'
 AFFIX_REGEX = r"\w*"
 DENYLIST_REGEX = r"|".join(DENYLIST)
 # Support for suffix after keyword i.e. password_secure = "value"
@@ -45,9 +44,10 @@ DENYLIST_REGEX_WITH_PREFIX = r"({denylist}){suffix}".format(
     denylist=DENYLIST_REGEX,
     suffix=AFFIX_REGEX,
 )
+PLACE_HOLDER = "{{ }}"
 
 
-def gen_email_address(_: Match[str]) -> str:
+def gen_email_address(original: Match[str]) -> str:
     samples = [
         "liam",
         "olivia",
@@ -70,66 +70,13 @@ def gen_email_address(_: Match[str]) -> str:
         "theodore",
         "harper",
     ]
-    return f"{random.choice(samples)}{random.randint(0, 100)}@example.com"
-
-
-def is_jinja2(content: str) -> bool:
-    flags = re.MULTILINE | re.DOTALL
-    if bool(re.search(r"{{.*\w+.*}}", content, flags)):
-        return True
-    if bool(re.search(r"{%.*\w+.*%}", content, flags)):
-        return True
-    return False
-
-
-def is_ip_address(content: str) -> bool:
-    try:
-        ipaddress.ip_address(content)
-    except ValueError:
-        return False
-    return True
-
-
-def is_email_address(content: str) -> bool:
-    return bool(re.match(r".*\w+@[a-z\.]+[a-z]{2,}.*", content, flags=re.IGNORECASE))
+    idx = crc32(original.group('email').encode()) % len(samples)
+    name = samples[idx]
+    return f"{name}{idx}@example.com"
 
 
 def is_password_field_name(name: str) -> bool:
     return re.search(DENYLIST_REGEX_WITH_PREFIX, name) is not None
-
-
-def is_valid_ssn(value: str) -> bool:
-    if not value:
-        return False
-    ssn_regex = "^(?!666|000|9\\d{2})\\d{3}-(?!00)\\d{2}-(?!0{4})\\d{4}$"
-    return re.search(ssn_regex, value) is not None
-
-
-def is_valid_macaddress(value: str) -> bool:
-    if not value:
-        return False
-    mac_regex = (
-        r"^([0-9A-Fa-f]{2}[:-])"
-        + r"{5}([0-9A-Fa-f]{2})|"  # noqa: W503
-        + r"([0-9a-fA-F]{4}\\."  # noqa: W503
-        + r"[0-9a-fA-F]{4}\\."  # noqa: W503
-        + r"[0-9a-fA-F]{4})$"  # noqa: W503
-    )
-    return re.search(mac_regex, value) is not None
-
-
-def is_valid_telephone_number(value: str) -> bool:
-    tele_regex = r"^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})(?: *x(\d+))?\s*$"
-    return re.search(tele_regex, value) is not None
-
-
-def is_valid_credit_card_number(value: str) -> bool:
-    cc_regex = r"\b(?:\d[ -]*?){13,16}\b"
-    return re.search(cc_regex, value) is not None
-
-
-def remove_email(value: str) -> str:
-    return re.sub(r".*(\w+@[a-z\.]+[a-z]{2,}).*", gen_email_address, value)
 
 
 common_ipv4_networks = [
@@ -157,7 +104,7 @@ def redact_ipv4_address(value: IPv4Address) -> IPv4Address:
         if value in i:
             return value
     try:
-        return value + random.randint(0, 100)
+        return value + int(value) % 100
     except ipaddress.AddressValueError:
         return value
 
@@ -176,7 +123,7 @@ def redact_ipv6_address(value: IPv6Address) -> IPv6Address:
     def randomize(block: Match[str]) -> str:
         field = block.group(0)[1:]
         as_int = int(field, 16)
-        new_val = random.randint(0, as_int)
+        new_val = as_int % 1024
         as_hex = hex(new_val)
         hex_without_0x_prefix = as_hex[2:]
         return ":" + hex_without_0x_prefix
@@ -196,27 +143,12 @@ def redact_ip_address(value: str) -> str:
 
 def anonymize_field(value: str, name: str) -> str:
     v = value.strip()
-    if not v:
-        return value
-    elif is_jinja2(v):
-        return value
-    elif is_ip_address(v):
-        return redact_ip_address(v)
-    elif is_email_address(v):
-        return remove_email(v)
-    elif is_valid_ssn(v):
-        return "{{ }}"
-    elif is_valid_macaddress(v):
-        return "{{ }}"
-    elif is_valid_telephone_number(v):
-        return "{{ }}"
-    elif is_valid_credit_card_number(v):
-        return "{{ }}"
     if is_password_field_name(name):
         if is_path(v):
             return value
-        return "{{ }}"
-    return value
+        return PLACE_HOLDER
+    else:
+        return anonymize_text_block(v)
 
 
 def is_path(content: str) -> bool:
@@ -227,7 +159,7 @@ def is_path(content: str) -> bool:
     return bool(re.match(r"^(|~)[a-z0-9_/\.-]+$", content, flags=re.IGNORECASE))
 
 
-def anonymize(o: Any, key_name: str = "") -> Any:
+def anonymize_struct(o: Any, key_name: str = "") -> Any:
     def key_name_str(k: Any) -> str:
         return k if isinstance(k, str) else ""
 
@@ -240,3 +172,139 @@ def anonymize(o: Any, key_name: str = "") -> Any:
     elif isinstance(o, str):
         return anonymize_field(o, key_name)
     return o
+
+
+def anonymize(o: Any, key_name: str = "") -> Any:
+    """Deprecated: use anonymize_struct() instead"""
+    return anonymize_struct(o, key_name=key_name)
+
+
+def hide_secrets(block: str) -> str:
+    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+
+    def _rewrite(m: re.Match[str]) -> str:
+        if is_path(m.group('value')):
+            return m.group(0)
+        else:
+            return f"{m.group('field')}: {PLACE_HOLDER}"
+
+    return re.sub(
+        fr"((?P<field>{DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>\S+))",
+        _rewrite,
+        block,
+        flags=flags,
+    )
+
+
+def hide_emails(block: str) -> str:
+    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+    email_re = r"\b\S+@[a-z\.]+[a-z]{2,}\b"
+    return re.sub(fr"(?P<email>{email_re})", gen_email_address, block, flags=flags)
+
+
+def hide_ip_addresses(block: str) -> str:
+    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+
+    def _rewrite(m: re.Match[str]) -> str:
+        try:
+            ip = ipaddress.ip_address(m.group('ip_address'))
+        except ValueError:
+            return m.group('ip_address')
+        func: Callable[[Union[IPv4Address | IPv6Address]], Union[IPv4Address | IPv6Address]]
+        func = {4: redact_ipv4_address, 6: redact_ipv6_address}[ip.version]  # type: ignore
+        return str(func(ip))
+
+    return re.sub(
+        r"(?P<ip_address>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|[a-f\d:]{3,32})",
+        _rewrite,
+        block,
+        flags=flags,
+    )
+
+
+def hide_us_ssn(block: str) -> str:
+    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+
+    def _rewrite(m: re.Match[str]) -> str:
+        return PLACE_HOLDER
+
+    us_ssn_regex = r"\b(?!666|000|9\d{2})\d{3}-(?!00)\d{2}-(?!0{4})\d{4}\b"
+    return re.sub(us_ssn_regex, _rewrite, block, flags=flags)
+
+
+def hide_mac_addresses(block: str) -> str:
+    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+
+    def _rewrite(m: re.Match[str]) -> str:
+        idx = crc32(m.group('mac').encode())
+
+        def gen() -> Generator[str, None, None]:
+            for c in m.group('mac'):
+                if c in ["-", ":", "."]:
+                    yield c
+                else:
+                    yield str(hex(int(c, 16) + idx % 0xF)[-1])
+
+        return "".join([c for c in gen()])
+
+    mac_regex = (
+        r"(?P<mac>\b([0-9a-f]{2}[:-])"
+        + r"{5}([0-9a-f]{2})|"  # noqa: W503
+        + r"([0-9a-f]{4}\."  # noqa: W503
+        + r"[0-9a-f]{4}\."  # noqa: W503
+        + r"[0-9a-f]{4})\b)"  # noqa: W503
+    )
+    return re.sub(mac_regex, _rewrite, block, flags=flags)
+
+
+def hide_us_phone_numbers(block: str) -> str:
+    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+
+    def _rewrite(m: re.Match[str]) -> str:
+        return "(311) 555-2368"
+
+    regexes = [
+        r"(?P<number>\b\d{10}\b)",
+        r"(?P<number>\b1\d{10}\b)",
+        r"(?P<number>\d{3}-\d{3}-\d{4}\b)",
+        r"(?P<number>\b\d{3} \d{3}-\d{4}\b)",
+        r"(?P<number>\(\d{3}\) \d{3}-\d{4}\b)",
+    ]
+
+    for r in regexes:
+        block = re.sub(r, _rewrite, block, flags=flags)
+    return block
+
+
+def hide_credit_cards(block: str) -> str:
+    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+
+    def _rewrite(m: re.Match[str]) -> str:
+        def luhn(n: str) -> bool:
+            r = [int(ch) for ch in str(n)][::-1]
+            return (sum(r[0::2]) + sum(sum(divmod(d * 2, 10)) for d in r[1::2])) % 10 == 0
+
+        cc = m.group("cc").replace(" ", "").replace("-", "")
+        if luhn(cc):
+            return PLACE_HOLDER
+        return m.group("cc")
+
+    cc_regex = r"(?P<cc>\b(?:\d[ -]*?){13,16}\b)"
+
+    return re.sub(cc_regex, _rewrite, block, flags=flags)
+
+
+def anonymize_text_block(block: str) -> str:
+    transformation = [
+        hide_secrets,
+        hide_emails,
+        hide_ip_addresses,
+        hide_us_ssn,
+        hide_mac_addresses,
+        hide_us_phone_numbers,
+        hide_credit_cards,
+    ]
+
+    for t in transformation:
+        block = t(block)
+    return block
