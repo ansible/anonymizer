@@ -34,6 +34,7 @@ DENYLIST = (
     "secret",
     "contraseña",
     "contrasena",
+    "access_key",
 )
 # Includes ], ', " as closing
 CLOSING = r'[]\'"]{0,2}'
