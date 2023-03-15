@@ -3,6 +3,8 @@ from ipaddress import IPv4Address
 from ipaddress import IPv4Network
 from ipaddress import IPv6Address
 
+from textwrap import dedent
+
 from anonymizor.anonymizor import is_password_field_name
 from anonymizor.anonymizor import is_path
 from anonymizor.anonymizor import redact_ip_address
@@ -19,6 +21,8 @@ from anonymizor.anonymizor import hide_us_ssn
 from anonymizor.anonymizor import hide_mac_addresses
 from anonymizor.anonymizor import hide_us_phone_numbers
 from anonymizor.anonymizor import hide_credit_cards
+from anonymizor.anonymizor import hide_comments
+from anonymizor.anonymizor import hide_user_name
 
 
 def test_is_password_field_name():
@@ -286,3 +290,43 @@ def test_anonymize_text_block_credit_cards():
     """
     assert anonymize_text_block(source) == expectation
     assert hide_credit_cards(source) == expectation
+
+
+def test_anonymize_text_block_comments():
+    source = """
+
+    # That a task block
+    - copy:  # A comment at the end of line
+        content: "some value to #  keep"
+
+    """
+
+    expectation = """
+
+
+    - copy:
+        content: "some value to #  keep"
+
+    """
+    assert anonymize_text_block(source) == expectation
+    assert hide_comments(dedent(source)) == dedent(expectation)
+
+
+def test_anonymize_text_block_user_name():
+    source = """
+    "documentUri": "file:///home/pierre-yves/git_repos/ansible-collections/tag_operations.yml"
+    'documentUri': 'file:///Users/rbobbitt/work//full_playbook.yml',
+    "dest": "/home/fedora/somewhere-else"
+    "dest": "/home/ubuntu/somewhere-else"
+
+    """
+
+    expectation = """
+    "documentUri": "file:///home/wisdom-user/git_repos/ansible-collections/tag_operations.yml"
+    'documentUri': 'file:///Users/wisdom-user/work//full_playbook.yml',
+    "dest": "/home/fedora/somewhere-else"
+    "dest": "/home/ubuntu/somewhere-else"
+
+    """
+    assert anonymize_text_block(source) == expectation
+    assert hide_user_name(dedent(source)) == dedent(expectation)
