@@ -294,8 +294,57 @@ def hide_credit_cards(block: str) -> str:
     return re.sub(cc_regex, _rewrite, block, flags=flags)
 
 
+def hide_comments(block: str) -> str:
+    new_block = ""
+    quotes = ""
+    in_comment = False
+    for c in block:
+        if c in ['"', "'"]:
+            if quotes and quotes[-1] == c:
+                quotes = quotes[:-1]
+            else:
+                quotes += c
+            new_block += c
+        elif c == "\n":
+            in_comment = False
+            quotes = ""
+            new_block += c
+        elif in_comment:
+            continue
+        elif c == "#" and not quotes:
+            in_comment = True
+            new_block = new_block.rstrip(" ")
+        else:
+            new_block += c
+    return new_block
+
+
+def hide_user_name(block: str) -> str:
+    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+
+    known_users = {
+        "Administrator",
+        "fedora",
+        "root",
+        "ubuntu",
+        "user",
+    }
+
+    def _rewrite(m: re.Match[str]) -> str:
+        if m.group("user_name") in known_users:
+            user = m.group("user_name")
+        else:
+            user = "wisdom-user"
+        return m.group("before") + user + m.group("after")
+
+    user_name_regex = r"(?P<before>/(home|Users)/)(?P<user_name>[^/]+)(?P<after>/)"
+
+    return re.sub(user_name_regex, _rewrite, block, flags=flags)
+
+
 def anonymize_text_block(block: str) -> str:
     transformation = [
+        hide_comments,
         hide_secrets,
         hide_emails,
         hide_ip_addresses,
@@ -303,6 +352,7 @@ def anonymize_text_block(block: str) -> str:
         hide_mac_addresses,
         hide_us_phone_numbers,
         hide_credit_cards,
+        hide_user_name,
     ]
 
     for t in transformation:
