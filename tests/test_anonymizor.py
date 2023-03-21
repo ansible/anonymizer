@@ -81,10 +81,10 @@ def test_anonymize_struct():
     changed = anonymize_struct(in_)
     assert "foo@montreal.ca" not in changed["name"]
     assert "2001:460:48::888" not in changed["a_module"]["ip"]
-    assert changed["a_module"]["password"] == "{{ }}"
+    assert changed["a_module"]["password"] == "{{ password }}"
 
     in_ = {"password": ["first_password", "second_password"]}
-    assert anonymize_struct(in_) == {"password": ["{{ }}", "{{ }}"]}
+    assert anonymize_struct(in_) == {"password": ["{{ password }}", "{{ password }}"]}
 
     # Str
     in_ = "my-email-address@somewhe.re"
@@ -113,6 +113,8 @@ def test_anonymize_text_block_secret_fields():
         - name: some example
             a-broken-key:
                 my-secret: a-secret
+                @^my-secret: weird-artifact
+                %@iÜ-secret: again
                 private_key: ~/.ssh/id_rsa
 
     """
@@ -120,12 +122,14 @@ def test_anonymize_text_block_secret_fields():
 
         - name: some example
             a-broken-key:
-                my-secret: {{ }}
+                my-secret: {{ my_secret }}
+                @^my-secret: {{ my_secret }}
+                %@iÜ-secret: {{ i_secret }}
                 private_key: ~/.ssh/id_rsa
 
     """
-    assert hide_secrets(source) == expectation
     assert anonymize_text_block(source) == expectation
+    assert hide_secrets(source) == expectation
 
 
 def test_anonymize_text_block_email_addresses():
@@ -151,8 +155,8 @@ def test_anonymize_text_block_email_addresses():
                 - 'evelyn17@example.com'
 
     """
-    assert hide_emails(source) == expectation
     assert anonymize_text_block(source) == expectation
+    assert hide_emails(source) == expectation
 
 
 def test_anonymize_text_block_ip_addresses():
@@ -196,7 +200,7 @@ def test_anonymize_text_block_us_ssn():
 
     - copy:
         content: |
-          here some content with a ssn "{{ }}"
+          here some content with a ssn "{{ ssn }}"
           and this is pi: 3.1415926535897936
 
     """
@@ -283,12 +287,12 @@ def test_anonymize_text_block_credit_cards():
 
     - copy:
         content: |
-          a_quoted_cc_number("{{ }}")
-          {{ }}
-          ({{ }})
-          "{{ }}"
-          "{{ }}"
-          "{{ }}"
+          a_quoted_cc_number("{{ credit_card_number }}")
+          {{ credit_card_number }}
+          ({{ credit_card_number }})
+          "{{ credit_card_number }}"
+          "{{ credit_card_number }}"
+          "{{ credit_card_number }}"
           and this is pi: 3.1415926535897936
 
     """

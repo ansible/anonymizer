@@ -44,7 +44,13 @@ AFFIX_REGEX = r"\w*"
 DENYLIST_REGEX = r"|".join(DENYLIST)
 # Support for suffix after keyword i.e. password_secure = "value"
 DENYLIST_REGEX_WITH_PREFIX = fr"({DENYLIST_REGEX}){AFFIX_REGEX}"
-PLACE_HOLDER = "{{ }}"
+
+
+def str_jinja2_variable_name(name: str) -> str:
+    """Sanitize a string to make it suitable to become a Jinja2 variable."""
+    name = name.replace("-", "_")
+    name = re.sub(r'[^a-z_]', '', name, flags=re.IGNORECASE)
+    return name
 
 
 def gen_email_address(original: Match[str]) -> str:
@@ -146,7 +152,8 @@ def anonymize_field(value: str, name: str) -> str:
     if is_password_field_name(name):
         if is_path(v):
             return value
-        return PLACE_HOLDER
+        variable_name = str_jinja2_variable_name(name)
+        return f"{{{{ { variable_name } }}}}"
     return anonymize_text_block(v)
 
 
@@ -166,9 +173,9 @@ def anonymize_struct(o: Any, key_name: str = "") -> Any:
         key_name = str(key_name)
 
     if isinstance(o, dict):
-        return {k: anonymize(v, key_name=key_name_str(k)) for k, v in o.items()}
+        return {k: anonymize_struct(v, key_name=key_name_str(k)) for k, v in o.items()}
     if isinstance(o, list):
-        return [anonymize(v, key_name=key_name) for v in o]
+        return [anonymize_struct(v, key_name=key_name) for v in o]
     if isinstance(o, str):
         return anonymize_field(o, key_name)
     return o
@@ -183,12 +190,14 @@ def hide_secrets(block: str) -> str:
     flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
 
     def _rewrite(m: re.Match[str]) -> str:
-        if is_path(m.group('value')):
+        value = m.group('value')
+        if is_path(value):
             return m.group(0)
-        return f"{m.group('field')}: {PLACE_HOLDER}"
+        field = m.group('field')
+        return f"{field}: {anonymize_field(value, field)}"
 
     return re.sub(
-        fr"((?P<field>{DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>\S+))",
+        fr"((?P<field>(|\S+){DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>\S+))",
         _rewrite,
         block,
         flags=flags,
@@ -225,7 +234,7 @@ def hide_us_ssn(block: str) -> str:
     flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
 
     def _rewrite(_: re.Match[str]) -> str:
-        return PLACE_HOLDER
+        return "{{ ssn }}"
 
     us_ssn_regex = r"\b(?!666|000|9\d{2})\d{3}-(?!00)\d{2}-(?!0{4})\d{4}\b"
     return re.sub(us_ssn_regex, _rewrite, block, flags=flags)
@@ -285,7 +294,7 @@ def hide_credit_cards(block: str) -> str:
 
         cc = m.group("cc").replace(" ", "").replace("-", "")
         if luhn(cc):
-            return PLACE_HOLDER
+            return "{{ credit_card_number }}"
         return m.group("cc")
 
     cc_regex = r"(?P<cc>\b(?:\d[ -]*?){13,16}\b)"
