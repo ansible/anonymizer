@@ -237,6 +237,8 @@ def test_anonymize_text_block_us_phone_numbers():
             9144991900
             19144991900
           and this is pi: 3.1415926535897936
+          a french number: 06 10 00 10 23
+          a cell number from belgium: 0479 20 07 77
 
     """
 
@@ -250,6 +252,8 @@ def test_anonymize_text_block_us_phone_numbers():
             (311) 555-2368
             (311) 555-2368
           and this is pi: 3.1415926535897936
+          a french number: 06 10 00 10 23
+          a cell number from belgium: 0479 20 07 77
 
     """
     assert anonymize_text_block(source) == expectation
