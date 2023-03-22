@@ -1,12 +1,12 @@
 ==========
-Anonymizor
+Anonymizer
 ==========
 
 
-.. image:: https://img.shields.io/pypi/v/anonymizor.svg
-        :target: https://pypi.python.org/pypi/anonymizor
-.. image:: https://github.com/goneri/ansible-wisdom-anonymizor/actions/workflows/tox.yml/badge.svg
-        :target: https://github.com/goneri/ansible-wisdom-anonymizor/actions
+.. image:: https://img.shields.io/pypi/v/ansible-anonymizer.svg
+        :target: https://pypi.python.org/pypi/ansible-anonymizer
+.. image:: https://github.com/ansible/ansible-anonymizer/actions/workflows/tox.yml/badge.svg
+        :target: https://github.com/ansible/ansible-anonymizer/actions
 
 
 
@@ -24,20 +24,20 @@ The library can be used to remove the PII from a multi level structure:
 .. code-block::
 
    $ python3
-   >>> from anonymizor import anonymizor
+   >>> from ansible_anonymizer import anonymizer
    >>> example = [{"name": "foo bar", "email": "my-email@address.com"}]
-   >>> anonymizor.anonymize_struct(example)
+   >>> anonymizer.anonymize_struct(example)
    ['- email: lucas27@example.com\n  name: foo bar\n']
 
 But you can also anonymize a block of text:
 
 .. code-block::
 
-   >>> from anonymizor import anonymizor
+   >>> from ansible_anonymizer import anonymizer
    >>> some_text = """
    ... - name: a task
    ...   a_module:
    ...     secret: foobar
    ... """
-   >>> anonymizor.anonymize_text_block(some_text)
+   >>> anonymizer.anonymize_text_block(some_text)
    '\n- name: a task\n  a_module:\n    secret: {{ }}\n'
