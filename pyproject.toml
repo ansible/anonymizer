@@ -6,12 +6,17 @@ build-backend = "setuptools.build_meta"
 name = "ansible-anonymizer"
 description = "Ansible Anonymizer"
 readme = "README.rst"
+authors = [{ name = "Gonéri Le Bouder", email = "goneri@lebouder.net" }]
 requires-python = ">=3.9"
 classifiers = [
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
 ]
 dynamic = ["version"]
+keywords = ["pii", "anonymize"]
 
+[project.urls]
+Homepage = "https://github.com/ansible/anonymizer"
 
 [project.optional-dependencies]
 test = [
