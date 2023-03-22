@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-function-docstring
+# pylint: disable=invalid-name
 import ipaddress
-from zlib import crc32
 import re
 from ipaddress import IPv4Address
 from ipaddress import IPv6Address
+from typing import Any
 from typing import Callable
+from typing import Generator
 from typing import Match
 from typing import Union
-from typing import Any
-from typing import Generator
+from zlib import crc32
 
 # Denylist regex to TC of secrets filter
 # From detect_secrets.plugins (Apache v2 License)
@@ -40,10 +43,7 @@ DENYLIST = (
 AFFIX_REGEX = r"\w*"
 DENYLIST_REGEX = r"|".join(DENYLIST)
 # Support for suffix after keyword i.e. password_secure = "value"
-DENYLIST_REGEX_WITH_PREFIX = r"({denylist}){suffix}".format(
-    denylist=DENYLIST_REGEX,
-    suffix=AFFIX_REGEX,
-)
+DENYLIST_REGEX_WITH_PREFIX = fr"({DENYLIST_REGEX}){AFFIX_REGEX}"
 PLACE_HOLDER = "{{ }}"
 
 
@@ -147,8 +147,7 @@ def anonymize_field(value: str, name: str) -> str:
         if is_path(v):
             return value
         return PLACE_HOLDER
-    else:
-        return anonymize_text_block(v)
+    return anonymize_text_block(v)
 
 
 def is_path(content: str) -> bool:
@@ -165,11 +164,12 @@ def anonymize_struct(o: Any, key_name: str = "") -> Any:
 
     if key_name and not isinstance(key_name, str):
         key_name = str(key_name)
+
     if isinstance(o, dict):
         return {k: anonymize(v, key_name=key_name_str(k)) for k, v in o.items()}
-    elif isinstance(o, list):
+    if isinstance(o, list):
         return [anonymize(v, key_name=key_name) for v in o]
-    elif isinstance(o, str):
+    if isinstance(o, str):
         return anonymize_field(o, key_name)
     return o
 
@@ -185,8 +185,7 @@ def hide_secrets(block: str) -> str:
     def _rewrite(m: re.Match[str]) -> str:
         if is_path(m.group('value')):
             return m.group(0)
-        else:
-            return f"{m.group('field')}: {PLACE_HOLDER}"
+        return f"{m.group('field')}: {PLACE_HOLDER}"
 
     return re.sub(
         fr"((?P<field>{DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>\S+))",
@@ -225,7 +224,7 @@ def hide_ip_addresses(block: str) -> str:
 def hide_us_ssn(block: str) -> str:
     flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
 
-    def _rewrite(m: re.Match[str]) -> str:
+    def _rewrite(_: re.Match[str]) -> str:
         return PLACE_HOLDER
 
     us_ssn_regex = r"\b(?!666|000|9\d{2})\d{3}-(?!00)\d{2}-(?!0{4})\d{4}\b"
@@ -245,7 +244,7 @@ def hide_mac_addresses(block: str) -> str:
                 else:
                     yield str(hex(int(c, 16) + idx % 0xF)[-1])
 
-        return "".join([c for c in gen()])
+        return "".join(c for c in gen())
 
     mac_regex = (
         r"(?P<mac>\b([0-9a-f]{2}[:-])"
@@ -260,7 +259,7 @@ def hide_mac_addresses(block: str) -> str:
 def hide_us_phone_numbers(block: str) -> str:
     flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
 
-    def _rewrite(m: re.Match[str]) -> str:
+    def _rewrite(_: re.Match[str]) -> str:
         return "(311) 555-2368"
 
     regexes = [

@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-function-docstring
 from ipaddress import IPv4Address
 from ipaddress import IPv4Network
 from ipaddress import IPv6Address
-
 from textwrap import dedent
 
+from anonymizor.anonymizor import anonymize
+from anonymizor.anonymizor import anonymize_struct
+from anonymizor.anonymizor import anonymize_text_block
+from anonymizor.anonymizor import hide_comments
+from anonymizor.anonymizor import hide_credit_cards
+from anonymizor.anonymizor import hide_emails
+from anonymizor.anonymizor import hide_ip_addresses
+from anonymizor.anonymizor import hide_mac_addresses
+from anonymizor.anonymizor import hide_secrets
+from anonymizor.anonymizor import hide_us_phone_numbers
+from anonymizor.anonymizor import hide_us_ssn
+from anonymizor.anonymizor import hide_user_name
 from anonymizor.anonymizor import is_password_field_name
 from anonymizor.anonymizor import is_path
 from anonymizor.anonymizor import redact_ip_address
 from anonymizor.anonymizor import redact_ipv4_address
 from anonymizor.anonymizor import redact_ipv6_address
-from anonymizor.anonymizor import anonymize
-from anonymizor.anonymizor import anonymize_struct
-from anonymizor.anonymizor import anonymize_text_block
-
-from anonymizor.anonymizor import hide_emails
-from anonymizor.anonymizor import hide_secrets
-from anonymizor.anonymizor import hide_ip_addresses
-from anonymizor.anonymizor import hide_us_ssn
-from anonymizor.anonymizor import hide_mac_addresses
-from anonymizor.anonymizor import hide_us_phone_numbers
-from anonymizor.anonymizor import hide_credit_cards
-from anonymizor.anonymizor import hide_comments
-from anonymizor.anonymizor import hide_user_name
 
 
 def test_is_password_field_name():
