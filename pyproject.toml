@@ -3,8 +3,8 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ansible-wisdom-anonymisor"
-description = "Ansible Wisdom Anonymisor"
+name = "ansible-anonymizer"
+description = "Ansible Anonymizer"
 readme = "README.rst"
 requires-python = ">=3.9"
 classifiers = [
@@ -21,10 +21,10 @@ test = [
 [tool]
 
 [tool.setuptools]
-packages = ["anonymizor"]
+packages = ["ansible_anonymizer"]
 
 [tool.setuptools.dynamic]
-version = {attr = "anonymizor.__version__"}
+version = {attr = "ansible_anonymizer.__version__"}
 
 [tool.black]
 line-length = 100

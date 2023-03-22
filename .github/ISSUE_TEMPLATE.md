@@ -1,4 +1,4 @@
-* Anonymizor version:
+* Anonymizer version:
 * Python version:
 * Operating System:
 
