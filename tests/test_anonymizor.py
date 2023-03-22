@@ -322,14 +322,28 @@ def test_anonymize_text_block_user_name():
     'documentUri': 'file:///Users/rbobbitt/work//full_playbook.yml',
     "dest": "/home/fedora/somewhere-else"
     "dest": "/home/ubuntu/somewhere-else"
+    "dest": "c:\\Users\\Gilbert\\été \\directory"
+    "unicode": c:\\Users\\Eloïse\\Œufs de pâques\\Fête
+    some_field:
+      - /home/marie-pier
+      - /home/marie-pier"Not the login"
+      - c:\\Users\\Bảo
+      - c:\\Users\\Bảo"Not the login"
 
     """
 
     expectation = """
-    "documentUri": "file:///home/wisdom-user/git_repos/ansible-collections/tag_operations.yml"
-    'documentUri': 'file:///Users/wisdom-user/work//full_playbook.yml',
+    "documentUri": "file:///home/ano-user/git_repos/ansible-collections/tag_operations.yml"
+    'documentUri': 'file:///Users/ano-user/work//full_playbook.yml',
     "dest": "/home/fedora/somewhere-else"
     "dest": "/home/ubuntu/somewhere-else"
+    "dest": "c:\\Users\\ano-user\\été \\directory"
+    "unicode": c:\\Users\\ano-user\\Œufs de pâques\\Fête
+    some_field:
+      - /home/ano-user
+      - /home/ano-user"Not the login"
+      - c:\\Users\\ano-user
+      - c:\\Users\\ano-user"Not the login"
 
     """
     assert anonymize_text_block(source) == expectation
