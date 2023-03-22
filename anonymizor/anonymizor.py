@@ -320,10 +320,11 @@ def hide_comments(block: str) -> str:
 
 
 def hide_user_name(block: str) -> str:
-    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+    flags = re.IGNORECASE
 
     known_users = {
-        "Administrator",
+        "cloud-user",
+        "ec2-user",
         "fedora",
         "root",
         "ubuntu",
@@ -334,12 +335,16 @@ def hide_user_name(block: str) -> str:
         if m.group("user_name") in known_users:
             user = m.group("user_name")
         else:
-            user = "wisdom-user"
-        return m.group("before") + user + m.group("after")
+            user = "ano-user"
+        return m.group("before") + user
 
-    user_name_regex = r"(?P<before>/(home|Users)/)(?P<user_name>[^/]+)(?P<after>/)"
-
-    return re.sub(user_name_regex, _rewrite, block, flags=flags)
+    user_regexes = [
+        r"(?P<before>[c-z]:\\users\\)(?P<user_name>\w{,255})",
+        r"(?P<before>/(home|Users)/)(?P<user_name>[a-z0-9_-]{,255})",
+    ]
+    for regex in user_regexes:
+        block = re.sub(regex, _rewrite, block, flags=flags)
+    return block
 
 
 def anonymize_text_block(block: str) -> str:
