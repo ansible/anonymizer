@@ -280,19 +280,22 @@ def hide_mac_addresses(block: str) -> str:
 def hide_us_phone_numbers(block: str) -> str:
     flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
 
-    def _rewrite(_: re.Match[str]) -> str:
-        return "(311) 555-2368"
+    def _rewrite(m: re.Match[str]) -> str:
+        return m.group("before") + "(311) 555-2368" + m.group("after")
 
+    pattern_before = r"(?P<before>([^\d\.]|^))"
+    pattern_after = r"(?P<after>([^\d\.]|$))"
     regexes = [
-        r"(?P<number>\b\d{10}\b)",
-        r"(?P<number>\b1\d{10}\b)",
-        r"(?P<number>\d{3}-\d{3}-\d{4}\b)",
-        r"(?P<number>\b\d{3} \d{3}-\d{4}\b)",
-        r"(?P<number>\(\d{3}\) \d{3}-\d{4}\b)",
+        r"(?P<number>\d{10})",
+        r"(?P<number>1\d{10})",
+        r"(?P<number>\d{3}-\d{3}-\d{4})",
+        r"(?P<number>\d{3} \d{3}-\d{4})",
+        r"(?P<number>\(\d{3}\) \d{3}-\d{4})",
     ]
 
     for r in regexes:
-        block = re.sub(r, _rewrite, block, flags=flags)
+        full_regex = pattern_before + r + pattern_after
+        block = re.sub(full_regex, _rewrite, block, flags=flags)
     return block
 
 
