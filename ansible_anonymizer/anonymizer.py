@@ -294,10 +294,12 @@ def hide_credit_cards(block: str) -> str:
 
         cc = m.group("cc").replace(" ", "").replace("-", "")
         if luhn(cc):
-            return "{{ credit_card_number }}"
-        return m.group("cc")
+            new_value = "{{ credit_card_number }}"
+        else:
+            new_value = m.group("cc")
+        return m.group("before") + new_value + m.group("after")
 
-    cc_regex = r"(?P<cc>\b(?:\d[ -]*?){13,16}\b)"
+    cc_regex = r"(?P<before>[^\d-])(?P<cc>(?:\d[ -]*?){13,16})(?P<after>[^\d-])"
 
     return re.sub(cc_regex, _rewrite, block, flags=flags)
 
