@@ -108,6 +108,19 @@ def test_anonymize():
     assert in_ != changed
 
 
+def test_anonymize_text_block_no_change():
+    source = """
+    - name: Create a keypair named mykeypair
+      amazon.aws.ec2_key:
+        name: "mykeypair2"
+        region: "us-east-1"
+        state: "present"
+      register: mykeypair
+
+    """
+    assert anonymize_text_block(source) == source
+
+
 def test_anonymize_text_block_secret_fields():
     source = """
 
