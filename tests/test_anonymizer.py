@@ -8,6 +8,7 @@ from textwrap import dedent
 
 from ansible_anonymizer.anonymizer import is_password_field_name
 from ansible_anonymizer.anonymizer import is_path
+from ansible_anonymizer.anonymizer import is_jinja2_expression
 from ansible_anonymizer.anonymizer import redact_ip_address
 from ansible_anonymizer.anonymizer import redact_ipv4_address
 from ansible_anonymizer.anonymizer import redact_ipv6_address
@@ -43,6 +44,13 @@ def test_is_path():
     assert is_path(".%/mypassword/f$b") is False
     assert is_path("certificates/CA.key") is True
     assert is_path("a_password") is False
+
+
+def test_is_jinja2_expression():
+    assert is_jinja2_expression("\" {{ foo|defaul('b')  }} \"") is True
+    assert is_jinja2_expression("{{ foo|defaul('b')  }}") is False
+    assert is_jinja2_expression("{{ foo|defaul('b')  }}", quoted=False) is True
+    assert is_jinja2_expression("my_passw'rd") is False
 
 
 def test_redact_ipv4_address():
@@ -106,6 +114,41 @@ def test_anonymize():
     in_ = ["my-email-address@somewhe.re"]
     changed = anonymize(in_)
     assert in_ != changed
+
+
+def test_anonymize_text_block_no_change():
+    source = """
+    ---
+    - name: AWS Cloud Operations
+      hosts: localhost
+      tasks:
+        - name: Create a virtual network named myvpc
+          amazon.aws.ec2_vpc_net:
+            aws_access_key: "{{ aws_access_key }}"
+            aws_secret_key: '{{ aws_secret_key }}'
+
+    ---
+    - name: AWS Cloud Operations
+      hosts: localhost
+      vars:
+        myvpc_region: "us-east1"
+        myvpc_name: "myvpc"
+
+      tasks:
+        - name: Create a virtual network
+          amazon.aws.ec2_vpc_net:
+            name: "{{ myvpc_name }}"
+            cidr_block: "{{ myvpc_cidr_block }}"
+
+    ---
+    - name: Add mysshkey to Linux servers
+      ansible.posix.authorized_key:
+        user: "{{ user }}"
+        state: present
+        key: "{{ lookup('file', '/mysshkey') }}"
+
+    """
+    assert anonymize_text_block(dedent(source)) == dedent(source)
 
 
 def test_anonymize_text_block_secret_fields():

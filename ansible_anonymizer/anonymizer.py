@@ -25,7 +25,7 @@ DENYLIST = (
     "priv_?key",
     "private_?key",
     "client_?key",
-    "host.*_key",
+    r"host\w*_key",
     "db_?pass",
     "database_?pass",
     "key_?pass",
@@ -83,6 +83,18 @@ def gen_email_address(original: Match[str]) -> str:
 
 def is_password_field_name(name: str) -> bool:
     return re.search(DENYLIST_REGEX_WITH_PREFIX, name) is not None
+
+
+def is_jinja2_expression(value: str, quoted: bool = True) -> bool:
+    if quoted:
+        if re.match(r"^\s*\"\s*{{\s*.*?\s*}}\s*\"\s*$", value):
+            return True
+        if re.match(r"^\s*'\s*{{\s*.*?\s*}}\s*'\s*$", value):
+            return True
+    elif re.match(r"^\s*{{\s*.*?\s*}}\s*$", value):
+        return True
+
+    return False
 
 
 common_ipv4_networks = [
@@ -150,7 +162,7 @@ def redact_ip_address(value: str) -> str:
 def anonymize_field(value: str, name: str) -> str:
     v = value.strip()
     if is_password_field_name(name):
-        if is_path(v):
+        if is_path(v) or is_jinja2_expression(v):
             return value
         variable_name = str_jinja2_variable_name(name)
         return f"{{{{ { variable_name } }}}}"
@@ -187,7 +199,7 @@ def anonymize(o: Any, key_name: str = "") -> Any:
 
 
 def hide_secrets(block: str) -> str:
-    flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
+    flags = re.MULTILINE | re.IGNORECASE
 
     def _rewrite(m: re.Match[str]) -> str:
         value = m.group('value')
@@ -197,7 +209,7 @@ def hide_secrets(block: str) -> str:
         return f"{field}: {anonymize_field(value, field)}"
 
     return re.sub(
-        fr"((?P<field>(|\S+){DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>\S+))",
+        fr"(?P<field>(|\S+){DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>.*)",
         _rewrite,
         block,
         flags=flags,
