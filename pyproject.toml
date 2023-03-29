@@ -23,6 +23,10 @@ test = [
     "tox",
 ]
 
+[project.scripts]
+ansible-anonymizer = "ansible_anonymizer.cli:main"
+
+
 [tool]
 
 [tool.setuptools]
