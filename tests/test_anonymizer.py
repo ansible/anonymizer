@@ -280,6 +280,7 @@ def test_anonymize_text_block_credit_cards():
           "1234567812345670"
           "1234 5678 1234 5670"
           "1234-5678-1234-5670"
+          a UUID that look like CC number: "34206f73-4e3a-1234-567812345670-b85a"
           and this is pi: 3.1415926535897936
 
     """
@@ -294,6 +295,7 @@ def test_anonymize_text_block_credit_cards():
           "{{ credit_card_number }}"
           "{{ credit_card_number }}"
           "{{ credit_card_number }}"
+          a UUID that look like CC number: "34206f73-4e3a-1234-567812345670-b85a"
           and this is pi: 3.1415926535897936
 
     """
