@@ -5,8 +5,8 @@ Anonymizer
 
 .. image:: https://img.shields.io/pypi/v/ansible-anonymizer.svg
         :target: https://pypi.python.org/pypi/ansible-anonymizer
-.. image:: https://github.com/ansible/ansible-anonymizer/actions/workflows/tox.yml/badge.svg
-        :target: https://github.com/ansible/ansible-anonymizer/actions
+.. image:: https://github.com/ansible/anonymizer/actions/workflows/tox.yml/badge.svg
+        :target: https://github.com/ansible/anonymizer/actions
 
 
 
