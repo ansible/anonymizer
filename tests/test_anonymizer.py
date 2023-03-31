@@ -344,6 +344,7 @@ def test_anonymize_text_block_credit_cards():
     """
     assert anonymize_text_block(source) == expectation
     assert hide_credit_cards(source) == expectation
+    assert hide_credit_cards("1234 5678 1234 5670") == "{{ credit_card_number }}"
 
 
 def test_anonymize_text_block_comments():
