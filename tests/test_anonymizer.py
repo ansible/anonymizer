@@ -6,25 +6,24 @@ from ipaddress import IPv4Network
 from ipaddress import IPv6Address
 from textwrap import dedent
 
+from ansible_anonymizer.anonymizer import anonymize
+from ansible_anonymizer.anonymizer import anonymize_struct
+from ansible_anonymizer.anonymizer import anonymize_text_block
+from ansible_anonymizer.anonymizer import hide_comments
+from ansible_anonymizer.anonymizer import hide_credit_cards
+from ansible_anonymizer.anonymizer import hide_emails
+from ansible_anonymizer.anonymizer import hide_ip_addresses
+from ansible_anonymizer.anonymizer import hide_mac_addresses
+from ansible_anonymizer.anonymizer import hide_secrets
+from ansible_anonymizer.anonymizer import hide_us_phone_numbers
+from ansible_anonymizer.anonymizer import hide_us_ssn
+from ansible_anonymizer.anonymizer import hide_user_name
 from ansible_anonymizer.anonymizer import is_password_field_name
 from ansible_anonymizer.anonymizer import is_path
 from ansible_anonymizer.anonymizer import is_jinja2_expression
 from ansible_anonymizer.anonymizer import redact_ip_address
 from ansible_anonymizer.anonymizer import redact_ipv4_address
 from ansible_anonymizer.anonymizer import redact_ipv6_address
-from ansible_anonymizer.anonymizer import anonymize
-from ansible_anonymizer.anonymizer import anonymize_struct
-from ansible_anonymizer.anonymizer import anonymize_text_block
-
-from ansible_anonymizer.anonymizer import hide_emails
-from ansible_anonymizer.anonymizer import hide_secrets
-from ansible_anonymizer.anonymizer import hide_ip_addresses
-from ansible_anonymizer.anonymizer import hide_us_ssn
-from ansible_anonymizer.anonymizer import hide_mac_addresses
-from ansible_anonymizer.anonymizer import hide_us_phone_numbers
-from ansible_anonymizer.anonymizer import hide_credit_cards
-from ansible_anonymizer.anonymizer import hide_comments
-from ansible_anonymizer.anonymizer import hide_user_name
 
 
 def test_is_password_field_name():
