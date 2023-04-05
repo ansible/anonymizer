@@ -82,7 +82,8 @@ def gen_email_address(original: Match[str]) -> str:
 
 
 def is_password_field_name(name: str) -> bool:
-    return re.search(DENYLIST_REGEX_WITH_PREFIX, name) is not None
+    flags = re.MULTILINE | re.IGNORECASE
+    return re.search(DENYLIST_REGEX_WITH_PREFIX, name, flags=flags) is not None
 
 
 def is_jinja2_expression(value: str) -> bool:
