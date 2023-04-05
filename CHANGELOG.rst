@@ -1,6 +1,13 @@
 Changelog
 =========
 
+Version 1.1.1 (2023-04-05)
+-------------
+
+- anonymize_field(): don't eat the spaces around the value
+- tox: adjust the cmd used to upload the release
+- adjust the Github Workflow badge URL
+
 Version 1.1.0 (2023-03-31)
 -------------
 
