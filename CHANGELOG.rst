@@ -1,6 +1,12 @@
 Changelog
 =========
 
+Version 1.1.2  (2023-04-05)
+-------------
+
+- hide_secrets(): protect the final jinja2 expression
+- MANIFEST.in: clean up some unused files
+
 Version 1.1.1 (2023-04-05)
 -------------
 
