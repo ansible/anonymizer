@@ -25,6 +25,7 @@ from ansible_anonymizer.anonymizer import is_path
 from ansible_anonymizer.anonymizer import redact_ip_address
 from ansible_anonymizer.anonymizer import redact_ipv4_address
 from ansible_anonymizer.anonymizer import redact_ipv6_address
+from ansible_anonymizer.anonymizer import unquote
 
 
 def test_is_password_field_name():
@@ -47,9 +48,7 @@ def test_is_path():
 
 
 def test_is_jinja2_expression():
-    assert is_jinja2_expression("\" {{ foo|defaul('b')  }} \"") is True
-    assert is_jinja2_expression("{{ foo|defaul('b')  }}") is False
-    assert is_jinja2_expression("{{ foo|defaul('b')  }}", quoted=False) is True
+    assert is_jinja2_expression("{{ foo|defaul('b')  }}") is True
     assert is_jinja2_expression("my_passw'rd") is False
 
 
@@ -125,7 +124,7 @@ def test_anonymize_text_block_no_change():
         - name: Create a virtual network named myvpc
           amazon.aws.ec2_vpc_net:
             aws_access_key: "{{ aws_access_key }}"
-            aws_secret_key: '{{ aws_secret_key }}'
+            aws_secret_key: "{{ aws_secret_key }}"
 
     ---
     - name: AWS Cloud Operations
@@ -158,7 +157,8 @@ def test_anonymize_text_block_secret_fields():
             a-broken-key:
                 my-secret: a-secret
                 @^my-secret: weird-artifact
-                %@iÜ-secret: again
+                %@iÜ-secret: "again"
+                quoted-secret: ' With {{ some_variable }} again    '
                 private_key: ~/.ssh/id_rsa
 
     """
@@ -166,9 +166,10 @@ def test_anonymize_text_block_secret_fields():
 
         - name: some example
             a-broken-key:
-                my-secret: {{ my_secret }}
-                @^my-secret: {{ my_secret }}
-                %@iÜ-secret: {{ i_secret }}
+                my-secret: "{{ my_secret }}"
+                @^my-secret: "{{ my_secret }}"
+                %@iÜ-secret: "{{ i_secret }}"
+                quoted-secret: "{{ quoted_secret }}"
                 private_key: ~/.ssh/id_rsa
 
     """
@@ -406,3 +407,12 @@ def test_anonymize_field():
     field = "my_field"
     value = "     a    "
     assert anonymize_field(value, field) == value
+
+
+def test_unquote():
+    assert unquote("'a'") == 'a'
+    assert unquote('"a"') == 'a'
+    assert unquote('"a\'') == '"a\''
+    assert unquote('a') == 'a'
+    assert unquote("''") == ""
+    assert unquote("'") == "'"

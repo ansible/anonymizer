@@ -85,13 +85,9 @@ def is_password_field_name(name: str) -> bool:
     return re.search(DENYLIST_REGEX_WITH_PREFIX, name) is not None
 
 
-def is_jinja2_expression(value: str, quoted: bool = True) -> bool:
-    if quoted:
-        if re.match(r"^\s*\"\s*{{\s*.*?\s*}}\s*\"\s*$", value):
-            return True
-        if re.match(r"^\s*'\s*{{\s*.*?\s*}}\s*'\s*$", value):
-            return True
-    elif re.match(r"^\s*{{\s*.*?\s*}}\s*$", value):
+def is_jinja2_expression(value: str) -> bool:
+    """Check if an unquoted string hold a Jinja2 variable"""
+    if re.match(r"^\s*{{\s*.*?\s*}}\s*$", value):
         return True
 
     return False
@@ -159,11 +155,21 @@ def redact_ip_address(value: str) -> str:
     return str(func(ip))
 
 
+def unquote(value: str) -> str:
+    if not value or len(value) < 2:
+        return value
+    if value[0] == value[-1] and value[0] in ('"', "'"):
+        return value[1:-1]
+    return value
+
+
 def anonymize_field(value: str, name: str) -> str:
     v = value.strip()
     if is_password_field_name(name):
-        if is_path(v) or is_jinja2_expression(v):
+        if is_path(v):
             return value
+        if is_jinja2_expression(unquote(v)):
+            return unquote(v)
         variable_name = str_jinja2_variable_name(name)
         return f"{{{{ { variable_name } }}}}"
     return anonymize_text_block(value)
@@ -206,7 +212,7 @@ def hide_secrets(block: str) -> str:
         if is_path(value):
             return m.group(0)
         field = m.group('field')
-        return f"{field}: {anonymize_field(value, field)}"
+        return f"{field}: \"{anonymize_field(value, field)}\""
 
     return re.sub(
         fr"(?P<field>(|\S+){DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>.*)",
