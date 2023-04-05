@@ -7,6 +7,7 @@ from ipaddress import IPv6Address
 from textwrap import dedent
 
 from ansible_anonymizer.anonymizer import anonymize
+from ansible_anonymizer.anonymizer import anonymize_field
 from ansible_anonymizer.anonymizer import anonymize_struct
 from ansible_anonymizer.anonymizer import anonymize_text_block
 from ansible_anonymizer.anonymizer import hide_comments
@@ -18,9 +19,9 @@ from ansible_anonymizer.anonymizer import hide_secrets
 from ansible_anonymizer.anonymizer import hide_us_phone_numbers
 from ansible_anonymizer.anonymizer import hide_us_ssn
 from ansible_anonymizer.anonymizer import hide_user_name
+from ansible_anonymizer.anonymizer import is_jinja2_expression
 from ansible_anonymizer.anonymizer import is_password_field_name
 from ansible_anonymizer.anonymizer import is_path
-from ansible_anonymizer.anonymizer import is_jinja2_expression
 from ansible_anonymizer.anonymizer import redact_ip_address
 from ansible_anonymizer.anonymizer import redact_ipv4_address
 from ansible_anonymizer.anonymizer import redact_ipv6_address
@@ -399,3 +400,9 @@ def test_anonymize_text_block_user_name():
     """
     assert anonymize_text_block(source) == expectation
     assert hide_user_name(dedent(source)) == dedent(expectation)
+
+
+def test_anonymize_field():
+    field = "my_field"
+    value = "     a    "
+    assert anonymize_field(value, field) == value

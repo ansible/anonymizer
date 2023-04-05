@@ -166,7 +166,7 @@ def anonymize_field(value: str, name: str) -> str:
             return value
         variable_name = str_jinja2_variable_name(name)
         return f"{{{{ { variable_name } }}}}"
-    return anonymize_text_block(v)
+    return anonymize_text_block(value)
 
 
 def is_path(content: str) -> bool:
