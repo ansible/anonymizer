@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Version 1.1.3  (2023-04-05)
+-------------
+
+- is_password_field_name(): ignore the case of the string
+
 Version 1.1.2  (2023-04-05)
 -------------
 
