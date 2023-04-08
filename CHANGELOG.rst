@@ -1,6 +1,12 @@
 Changelog
 =========
 
+Version 1.1.4  (2023-04-08)
+-------------
+
+- is_uuid_string(): do not anonymize UUID strings
+- test_anonymizer: add UUID test cases
+
 Version 1.1.3  (2023-04-05)
 -------------
 
