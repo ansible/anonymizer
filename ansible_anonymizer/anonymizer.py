@@ -97,7 +97,9 @@ def is_jinja2_expression(value: str) -> bool:
 def is_uuid_string(value: str) -> bool:
     """Check if a given value is a UUID string"""
     if re.match(
-        r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", value
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        value,
+        flags=re.IGNORECASE,
     ):
         return True
 
