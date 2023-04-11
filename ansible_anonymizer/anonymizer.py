@@ -94,6 +94,18 @@ def is_jinja2_expression(value: str) -> bool:
     return False
 
 
+def is_uuid_string(value: str) -> bool:
+    """Check if a given value is a UUID string"""
+    if re.match(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        value,
+        flags=re.IGNORECASE,
+    ):
+        return True
+
+    return False
+
+
 common_ipv4_networks = [
     ipaddress.IPv4Network("1.0.0.1/32"),
     ipaddress.IPv4Network("1.1.1.1/32"),
@@ -166,6 +178,8 @@ def unquote(value: str) -> str:
 
 def anonymize_field(value: str, name: str) -> str:
     v = value.strip()
+    if is_uuid_string(v):
+        return value
     if is_password_field_name(name):
         if is_path(v):
             return value

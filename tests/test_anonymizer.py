@@ -22,6 +22,7 @@ from ansible_anonymizer.anonymizer import hide_user_name
 from ansible_anonymizer.anonymizer import is_jinja2_expression
 from ansible_anonymizer.anonymizer import is_password_field_name
 from ansible_anonymizer.anonymizer import is_path
+from ansible_anonymizer.anonymizer import is_uuid_string
 from ansible_anonymizer.anonymizer import redact_ip_address
 from ansible_anonymizer.anonymizer import redact_ipv4_address
 from ansible_anonymizer.anonymizer import redact_ipv6_address
@@ -417,3 +418,17 @@ def test_unquote():
     assert unquote('a') == 'a'
     assert unquote("''") == ""
     assert unquote("'") == "'"
+
+
+def test_is_uuid_string():
+    assert is_uuid_string('ce34efc1-f5e3-4b0f-bb2c-5272319589a7') is True
+    assert is_uuid_string('CE34EFC1-F5E3-4B0F-BB2C-5272319589A7') is True
+
+
+def test_anonymize_uuid_field():
+    field = "uuid_field"
+    value = "ce34efc1-f5e3-4b0f-bb2c-5272319589a7"
+    assert anonymize_field(value, field) == value
+
+    value = "CE34EFC1-F5E3-4B0F-BB2C-5272319589A7"
+    assert anonymize_field(value, field) == value
