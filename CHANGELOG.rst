@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Version 1.1.5 (2023-04-11)
+-------------
+
+- comment: ensure the quotes are also removed (#34)
+
 Version 1.1.4  (2023-04-08)
 -------------
 
