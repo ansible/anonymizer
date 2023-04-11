@@ -345,18 +345,18 @@ def hide_comments(block: str) -> str:
     quotes = ""
     in_comment = False
     for c in block:
-        if c in ['"', "'"]:
-            if quotes and quotes[-1] == c:
-                quotes = quotes[:-1]
-            else:
-                quotes += c
-            new_block += c
-        elif c == "\n":
+        if c == "\n":
             in_comment = False
             quotes = ""
             new_block += c
         elif in_comment:
             continue
+        elif c in ['"', "'"]:
+            if quotes and quotes[-1] == c:
+                quotes = quotes[:-1]
+            else:
+                quotes += c
+            new_block += c
         elif c == "#" and not quotes:
             in_comment = True
             new_block = new_block.rstrip(" ")
