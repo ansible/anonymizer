@@ -371,6 +371,15 @@ def test_anonymize_text_block_comments():
     assert hide_comments(dedent(source)) == dedent(expectation)
 
 
+def test_anonymize_comment_with_quote():
+    source = (
+        "# NEWCOPY'- "
+        "#name: using the zos_operator module, issue command PHASEIN  "
+        "#zos_operator:    cmd: 'CEMT SET PROGRAM PHASEIN'"
+    )
+    assert hide_comments(source) == ""
+
+
 def test_anonymize_text_block_user_name():
     source = """
     "documentUri": "file:///home/pierre-yves/git_repos/ansible-collections/tag_operations.yml"
