@@ -5,6 +5,7 @@
 import ipaddress
 import re
 from collections.abc import Generator
+from enum import Enum
 from ipaddress import IPv4Address, IPv6Address
 from re import Match
 from typing import Any, Callable, Union
@@ -46,7 +47,7 @@ DENYLIST_REGEX_WITH_PREFIX = fr"({DENYLIST_REGEX}){AFFIX_REGEX}"
 def str_jinja2_variable_name(name: str) -> str:
     """Sanitize a string to make it suitable to become a Jinja2 variable."""
     name = name.replace("-", "_")
-    name = re.sub(r"[^a-z_]", "", name, flags=re.IGNORECASE)
+    name = re.sub(r"[^a-z_\d]", "", name, flags=re.IGNORECASE)
     return name
 
 
@@ -227,23 +228,176 @@ def anonymize(o: Any, key_name: str = "") -> Any:
 
 
 def hide_secrets(block: str) -> str:
-    flags = re.MULTILINE | re.IGNORECASE
+    class State(Enum):
+        NONE = 1  # Nothing special, just record the character
+        IN_FIELD = 2  # Potentially in a field name
+        POST_FIELD = 3  # After a field name to anonymize
+        IN_PLAIN_PASSWORD = 4  # Inside a password block
+        IN_QUOTED_PASSWORD = 5  # Inside a password block that is quoted
 
-    def _rewrite(m: re.Match[str]) -> str:
-        value = m.group("value")
-        field = m.group("field")
-        if is_path(value):
-            return m.group(0)
-        if is_allowed_password_field(field):
-            return m.group(0)
-        return f'{field}: "{anonymize_field(value, field)}"'
+    class StateMachine:
+        def __init__(self) -> None:
+            self.c = ""
+            self.char_is_protected = False
+            self.current_text_string = ""
+            self.field_name = ""
+            self.final = ""
+            self.next_char_is_protected = False
+            self.password_capture_quote_level = 0
+            self.popped_quote = ''
+            self.quote_stack: list[str] = []
+            self.state = State.NONE
 
-    return re.sub(
-        fr"(?P<field>(|\S+){DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>.*)",
-        _rewrite,
-        block,
-        flags=flags,
-    )
+        def record_secret(self, quoted: bool=False) -> None:
+            # We ignore the Jinja2 expression
+            variable_name = str_jinja2_variable_name(self.field_name.lower())
+            if self.current_text_string.startswith("{{"):
+                self.final += sm.current_text_string
+            elif is_path(sm.current_text_string):
+                self.final += sm.current_text_string
+            elif quoted:
+                self.final += f'"{{{{ { variable_name } }}}}"'
+            else:
+                self.final += f"{{{{ { variable_name } }}}}"
+            self.current_text_string = ""
+
+        def record_c(self) -> None:
+            self.final += self.c
+
+        def set_state(self, state: State) -> None:
+            if state in [State.IN_PLAIN_PASSWORD, State.IN_QUOTED_PASSWORD]:
+                self.password_capture_quote_level = len(self.quote_stack)
+
+            if self.state == State.IN_PLAIN_PASSWORD and state == State.NONE:
+                self.record_secret(quoted=not sm.password_capture_quote_level > 0)
+            if self.state == State.IN_QUOTED_PASSWORD and state == State.NONE:
+                self.record_secret()
+
+            if self.state == State.IN_FIELD and state == State.POST_FIELD:
+                self.field_name = self.current_text_string
+                self.current_text_string = ""
+
+            if state == State.NONE:
+                self.current_text_string = ""
+                self.field_name = ""
+                self.password_capture_quote_level = 0
+
+            self.state = state
+
+        def set_c(self, c: str) -> None:
+            self.popped_quote = ''
+            self.c = c
+            self.char_is_protected = self.next_char_is_protected
+            self.next_char_is_protected = False
+
+        def is_quote_opening(self) -> bool:
+            if self.char_is_protected:
+                return False
+            if c not in ["'", '"']:
+                return False
+            if c in self.quote_stack:
+                return False
+            return True
+
+        def is_quote_closing(self) -> bool:
+            if not sm.quote_stack:
+                return False
+            if sm.char_is_protected:
+                return False
+            return sm.quote_stack[-1] == c
+
+        def is_backslash(self) -> bool:
+            return c == "\\"
+
+        def is_space(self) -> bool:
+            return self.c == " "
+
+        def is_quote(self) -> bool:
+            return self.c in ["'", '"']
+
+        def is_quote_closing_password(self) -> bool:
+            return (
+                self.c == self.popped_quote
+                and self.password_capture_quote_level == len(self.quote_stack) + 1
+            )
+
+        def is_password_closing(self) -> bool:
+            if self.c == self.popped_quote:
+                return True
+            return self.c in [" ", "\n"]
+
+        def is_inside_quoted_password(self) -> bool:
+            return not self.popped_quote and self.c != " "
+
+        def is_valid_first_character_for_a_variable(self) -> bool:
+            """Assuming variable names cannot start with a digit."""
+            return self.c.isascii() and self.c.isalpha()
+
+        def is_valid_variable_character(self) -> bool:
+            return self.c.isascii() and (self.c.isalnum() or self.c in ["-", "_"])
+
+        def is_field_closing(self) -> bool:
+            return self.c in [":", "="]
+
+    sm = StateMachine()
+    for c in block:
+        sm.set_c(c)
+
+        # Quote management
+        if sm.is_quote_opening():
+            sm.quote_stack.append(c)
+        elif sm.is_quote_closing():
+            sm.popped_quote = sm.quote_stack.pop()
+        elif sm.is_backslash():
+            sm.next_char_is_protected = True
+
+        # State based changes
+        if sm.state == State.POST_FIELD:
+            if sm.is_space():
+                sm.record_c()
+            elif sm.is_quote():
+                sm.set_state(State.IN_QUOTED_PASSWORD)
+                sm.record_c()
+            elif sm.c not in [" ", "\n"]:
+                sm.set_state(State.IN_PLAIN_PASSWORD)
+                sm.current_text_string += c
+        elif sm.state == State.IN_PLAIN_PASSWORD:
+            if sm.is_password_closing():
+                sm.set_state(State.NONE)
+                sm.record_c()
+            else:
+                sm.current_text_string += sm.c
+        elif sm.state == State.IN_QUOTED_PASSWORD:
+            if sm.is_quote_closing_password():
+                sm.set_state(State.NONE)
+                sm.record_c()
+            else:
+                sm.current_text_string += sm.c
+        elif sm.state == State.NONE:
+            if sm.is_valid_first_character_for_a_variable():
+                sm.current_text_string += c
+                sm.set_state(State.IN_FIELD)
+            sm.record_c()
+        elif sm.state == State.IN_FIELD:
+            if sm.is_field_closing():
+                print("- closing")
+                if is_password_field_name(sm.current_text_string):
+                    sm.record_c()
+                    sm.set_state(State.POST_FIELD)
+                else:
+                    sm.record_c()
+                    sm.set_state(State.NONE)
+            elif sm.is_valid_variable_character():
+                print("- valid characher")
+                sm.record_c()
+                sm.current_text_string += c
+            else:
+                print("- Something else")
+                sm.record_c()
+                sm.set_state(State.NONE)
+
+    sm.set_state(State.NONE)
+    return sm.final
 
 
 def hide_emails(block: str) -> str:

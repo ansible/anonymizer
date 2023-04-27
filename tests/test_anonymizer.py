@@ -173,8 +173,8 @@ def test_anonymize_text_block_secret_fields():
             a-broken-key:
                 my-secret: "{{ my_secret }}"
                 @^my-secret: "{{ my_secret }}"
-                %@iÜ-secret: "{{ i_secret }}"
-                quoted-secret: "{{ quoted_secret }}"
+                %@iÜ-secret: "{{ secret }}"
+                quoted-secret: '{{ quoted_secret }}'
                 private_key: ~/.ssh/id_rsa
 
     """
@@ -454,3 +454,41 @@ def test_is_allowed_password_field():
 def test_hide_secret_sudo_line():
     source = 'line="%wheel\tALL=(ALL)\tNOPASSWD: ALL"'
     assert hide_secrets(source) == source
+
+
+def test_hide_secrets_quoted():
+    assert (
+        hide_secrets("ansible: 'ALL=(ALL) PASSWD: \\\"{{NOPASSWD'")
+        == "ansible: 'ALL=(ALL) PASSWD: {{ passwd }}'"
+    )
+    assert (
+        hide_secrets("ansible: 'ALL=(ALL) PASSWD: \\\"{{NOPASSWD'")
+        == "ansible: 'ALL=(ALL) PASSWD: {{ passwd }}'"
+    )
+    assert (
+        hide_secrets("password1: foobar\npassword: barfoo")
+        == 'password1: "{{ password1 }}"\npassword: "{{ password }}"'
+    )
+    assert (
+        hide_secrets("password1: 'foobar'\npassword: 'barfoo'")
+        == "password1: '{{ password1 }}'\npassword: '{{ password }}'"
+    )
+    assert (
+        hide_secrets('%wheel	ALL=(ALL)	PASSWD: "ALL"') == '%wheel	ALL=(ALL)	PASSWD: "{{ passwd }}"'
+    )
+    assert (
+        hide_secrets("%ansible (ALL) PASSWD: {{ NOPASSWD }}")
+        == "%ansible (ALL) PASSWD: {{ NOPASSWD }}"
+    )
+    assert (
+        hide_secrets('%ansible ALL=(ALL) PASSWD: "{{ NOPASSWD }}"')
+        == '%ansible ALL=(ALL) PASSWD: "{{ NOPASSWD }}"'
+    )
+    assert (
+        hide_secrets('line: "%ansible ALL=(ALL) NOPASSWD: {{ NOPASSWD }}"')
+        == 'line: "%ansible ALL=(ALL) NOPASSWD: {{ NOPASSWD }}"'
+    )
+    assert (
+        hide_secrets('line: "%ansible password=\'foobar\'"')
+        == 'line: "%ansible password=\'{{ password }}\'"'
+    )
