@@ -19,6 +19,7 @@ from ansible_anonymizer.anonymizer import hide_secrets
 from ansible_anonymizer.anonymizer import hide_us_phone_numbers
 from ansible_anonymizer.anonymizer import hide_us_ssn
 from ansible_anonymizer.anonymizer import hide_user_name
+from ansible_anonymizer.anonymizer import is_allowed_password_field
 from ansible_anonymizer.anonymizer import is_jinja2_expression
 from ansible_anonymizer.anonymizer import is_password_field_name
 from ansible_anonymizer.anonymizer import is_path
@@ -38,6 +39,8 @@ def test_is_password_field_name():
     assert is_password_field_name("key_name") is True
     assert is_password_field_name("host_config_key") is True
     assert is_password_field_name("quayPassword") is True
+    assert is_password_field_name("NOPASSWD") is False
+    assert is_password_field_name("nopasswd") is True
 
 
 def test_is_path():
@@ -441,3 +444,13 @@ def test_anonymize_uuid_field():
 
     value = "CE34EFC1-F5E3-4B0F-BB2C-5272319589A7"
     assert anonymize_field(value, field) == value
+
+
+def test_is_allowed_password_field():
+    assert is_allowed_password_field("NOPASSWD") is True
+    assert is_allowed_password_field("NOPASSWD2") is False
+
+
+def test_hide_secret_sudo_line():
+    source = 'line="%wheel\tALL=(ALL)\tNOPASSWD: ALL"'
+    assert hide_secrets(source) == source

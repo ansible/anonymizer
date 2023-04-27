@@ -83,7 +83,17 @@ def gen_email_address(original: Match[str]) -> str:
 
 def is_password_field_name(name: str) -> bool:
     flags = re.MULTILINE | re.IGNORECASE
+    if is_allowed_password_field(name):
+        return False
     return re.search(DENYLIST_REGEX_WITH_PREFIX, name, flags=flags) is not None
+
+
+def is_allowed_password_field(field_name: str) -> bool:
+    """Return True if field_name should not be considered as a password"""
+    # Valid field found in sudo configuration
+    if field_name == "NOPASSWD":
+        return True
+    return False
 
 
 def is_jinja2_expression(value: str) -> bool:
@@ -224,9 +234,11 @@ def hide_secrets(block: str) -> str:
 
     def _rewrite(m: re.Match[str]) -> str:
         value = m.group('value')
+        field = m.group('field')
         if is_path(value):
             return m.group(0)
-        field = m.group('field')
+        if is_allowed_password_field(field):
+            return m.group(0)
         return f"{field}: \"{anonymize_field(value, field)}\""
 
     return re.sub(
