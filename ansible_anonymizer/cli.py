@@ -6,14 +6,13 @@ import pathlib
 
 import yaml
 
-from ansible_anonymizer.anonymizer import anonymize_struct
-from ansible_anonymizer.anonymizer import anonymize_text_block
+from ansible_anonymizer.anonymizer import anonymize_struct, anonymize_text_block
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('file_path', type=pathlib.Path)
-    parser.add_argument('--format', choices=["text", "yaml"], type=str, default="text")
+    parser.add_argument("file_path", type=pathlib.Path)
+    parser.add_argument("--format", choices=["text", "yaml"], type=str, default="text")
     args = parser.parse_args()
 
     if args.format == "text":
