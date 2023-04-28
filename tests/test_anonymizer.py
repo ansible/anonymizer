@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-function-docstring
-from ipaddress import IPv4Address
-from ipaddress import IPv4Network
-from ipaddress import IPv6Address
+from ipaddress import IPv4Address, IPv4Network, IPv6Address
 from textwrap import dedent
 
-from ansible_anonymizer.anonymizer import anonymize
-from ansible_anonymizer.anonymizer import anonymize_field
-from ansible_anonymizer.anonymizer import anonymize_struct
-from ansible_anonymizer.anonymizer import anonymize_text_block
-from ansible_anonymizer.anonymizer import hide_comments
-from ansible_anonymizer.anonymizer import hide_credit_cards
-from ansible_anonymizer.anonymizer import hide_emails
-from ansible_anonymizer.anonymizer import hide_ip_addresses
-from ansible_anonymizer.anonymizer import hide_mac_addresses
-from ansible_anonymizer.anonymizer import hide_secrets
-from ansible_anonymizer.anonymizer import hide_us_phone_numbers
-from ansible_anonymizer.anonymizer import hide_us_ssn
-from ansible_anonymizer.anonymizer import hide_user_name
-from ansible_anonymizer.anonymizer import is_allowed_password_field
-from ansible_anonymizer.anonymizer import is_jinja2_expression
-from ansible_anonymizer.anonymizer import is_password_field_name
-from ansible_anonymizer.anonymizer import is_path
-from ansible_anonymizer.anonymizer import is_uuid_string
-from ansible_anonymizer.anonymizer import redact_ip_address
-from ansible_anonymizer.anonymizer import redact_ipv4_address
-from ansible_anonymizer.anonymizer import redact_ipv6_address
-from ansible_anonymizer.anonymizer import unquote
+from ansible_anonymizer.anonymizer import (
+    anonymize,
+    anonymize_field,
+    anonymize_struct,
+    anonymize_text_block,
+    hide_comments,
+    hide_credit_cards,
+    hide_emails,
+    hide_ip_addresses,
+    hide_mac_addresses,
+    hide_secrets,
+    hide_us_phone_numbers,
+    hide_us_ssn,
+    hide_user_name,
+    is_allowed_password_field,
+    is_jinja2_expression,
+    is_password_field_name,
+    is_path,
+    is_uuid_string,
+    redact_ip_address,
+    redact_ipv4_address,
+    redact_ipv6_address,
+    unquote,
+)
 
 
 def test_is_password_field_name():
@@ -424,17 +424,17 @@ def test_anonymize_field():
 
 
 def test_unquote():
-    assert unquote("'a'") == 'a'
-    assert unquote('"a"') == 'a'
+    assert unquote("'a'") == "a"
+    assert unquote('"a"') == "a"
     assert unquote('"a\'') == '"a\''
-    assert unquote('a') == 'a'
+    assert unquote("a") == "a"
     assert unquote("''") == ""
     assert unquote("'") == "'"
 
 
 def test_is_uuid_string():
-    assert is_uuid_string('ce34efc1-f5e3-4b0f-bb2c-5272319589a7') is True
-    assert is_uuid_string('CE34EFC1-F5E3-4B0F-BB2C-5272319589A7') is True
+    assert is_uuid_string("ce34efc1-f5e3-4b0f-bb2c-5272319589a7") is True
+    assert is_uuid_string("CE34EFC1-F5E3-4B0F-BB2C-5272319589A7") is True
 
 
 def test_anonymize_uuid_field():

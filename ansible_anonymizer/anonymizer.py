@@ -4,13 +4,10 @@
 # pylint: disable=invalid-name
 import ipaddress
 import re
-from ipaddress import IPv4Address
-from ipaddress import IPv6Address
-from typing import Any
-from typing import Callable
-from typing import Generator
-from typing import Match
-from typing import Union
+from collections.abc import Generator
+from ipaddress import IPv4Address, IPv6Address
+from re import Match
+from typing import Any, Callable, Union
 from zlib import crc32
 
 # Denylist regex to TC of secrets filter
@@ -49,7 +46,7 @@ DENYLIST_REGEX_WITH_PREFIX = fr"({DENYLIST_REGEX}){AFFIX_REGEX}"
 def str_jinja2_variable_name(name: str) -> str:
     """Sanitize a string to make it suitable to become a Jinja2 variable."""
     name = name.replace("-", "_")
-    name = re.sub(r'[^a-z_]', '', name, flags=re.IGNORECASE)
+    name = re.sub(r"[^a-z_]", "", name, flags=re.IGNORECASE)
     return name
 
 
@@ -76,7 +73,7 @@ def gen_email_address(original: Match[str]) -> str:
         "theodore",
         "harper",
     ]
-    idx = crc32(original.group('email').encode()) % len(samples)
+    idx = crc32(original.group("email").encode()) % len(samples)
     name = samples[idx]
     return f"{name}{idx}@example.com"
 
@@ -89,7 +86,7 @@ def is_password_field_name(name: str) -> bool:
 
 
 def is_allowed_password_field(field_name: str) -> bool:
-    """Return True if field_name should not be considered as a password"""
+    """Return True if field_name should not be considered as a password."""
     # Valid field found in sudo configuration
     if field_name == "NOPASSWD":
         return True
@@ -97,7 +94,7 @@ def is_allowed_password_field(field_name: str) -> bool:
 
 
 def is_jinja2_expression(value: str) -> bool:
-    """Check if an unquoted string hold a Jinja2 variable"""
+    """Check if an unquoted string hold a Jinja2 variable."""
     if re.match(r"^\s*{{\s*.*?\s*}}\s*$", value):
         return True
 
@@ -105,7 +102,7 @@ def is_jinja2_expression(value: str) -> bool:
 
 
 def is_uuid_string(value: str) -> bool:
-    """Check if a given value is a UUID string"""
+    """Check if a given value is a UUID string."""
     if re.match(
         r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
         value,
@@ -225,7 +222,7 @@ def anonymize_struct(o: Any, key_name: str = "") -> Any:
 
 
 def anonymize(o: Any, key_name: str = "") -> Any:
-    """Deprecated: use anonymize_struct() instead"""
+    """Deprecated: use anonymize_struct() instead."""
     return anonymize_struct(o, key_name=key_name)
 
 
@@ -233,13 +230,13 @@ def hide_secrets(block: str) -> str:
     flags = re.MULTILINE | re.IGNORECASE
 
     def _rewrite(m: re.Match[str]) -> str:
-        value = m.group('value')
-        field = m.group('field')
+        value = m.group("value")
+        field = m.group("field")
         if is_path(value):
             return m.group(0)
         if is_allowed_password_field(field):
             return m.group(0)
-        return f"{field}: \"{anonymize_field(value, field)}\""
+        return f'{field}: "{anonymize_field(value, field)}"'
 
     return re.sub(
         fr"(?P<field>(|\S+){DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>.*)",
@@ -260,9 +257,9 @@ def hide_ip_addresses(block: str) -> str:
 
     def _rewrite(m: re.Match[str]) -> str:
         try:
-            ip = ipaddress.ip_address(m.group('ip_address'))
+            ip = ipaddress.ip_address(m.group("ip_address"))
         except ValueError:
-            return m.group('ip_address')
+            return m.group("ip_address")
         func: Callable[[Union[IPv4Address | IPv6Address]], Union[IPv4Address | IPv6Address]]
         func = {4: redact_ipv4_address, 6: redact_ipv6_address}[ip.version]  # type: ignore
         return str(func(ip))
@@ -289,10 +286,10 @@ def hide_mac_addresses(block: str) -> str:
     flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
 
     def _rewrite(m: re.Match[str]) -> str:
-        idx = crc32(m.group('mac').encode())
+        idx = crc32(m.group("mac").encode())
 
         def gen() -> Generator[str, None, None]:
-            for c in m.group('mac'):
+            for c in m.group("mac"):
                 if c in ["-", ":", "."]:
                     yield c
                 else:
@@ -341,10 +338,7 @@ def hide_credit_cards(block: str) -> str:
             return (sum(r[0::2]) + sum(sum(divmod(d * 2, 10)) for d in r[1::2])) % 10 == 0
 
         cc = m.group("cc").replace(" ", "").replace("-", "")
-        if luhn(cc):
-            new_value = "{{ credit_card_number }}"
-        else:
-            new_value = m.group("cc")
+        new_value = "{{ credit_card_number }}" if luhn(cc) else m.group("cc")
         return m.group("before") + new_value + m.group("after")
 
     cc_regex = r"(?P<before>([^\d-]|^))(?P<cc>(?:\d[ -]*?){13,16})(?P<after>([^\d-]|$))"
@@ -390,10 +384,7 @@ def hide_user_name(block: str) -> str:
     }
 
     def _rewrite(m: re.Match[str]) -> str:
-        if m.group("user_name") in known_users:
-            user = m.group("user_name")
-        else:
-            user = "ano-user"
+        user = m.group("user_name") if m.group("user_name") in known_users else "ano-user"
         return m.group("before") + user
 
     user_regexes = [
