@@ -22,9 +22,9 @@ class NodeType(Enum):
     quoted_string_closing = 4
     new_line = 5
     space = 6
-    securized = 8
-    backslash = 9
-    deleted = 10
+    securized = 7
+    backslash = 8
+    deleted = 9
 
 
 class ParserError(Exception):
