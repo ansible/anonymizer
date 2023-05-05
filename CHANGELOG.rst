@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Version 1.2.1 (2023-05-05)
+-------------
+
+- clean up some debug traces
+
 Version 1.2.0 (2023-05-05)
 -------------
 

@@ -66,9 +66,7 @@ class Node:
         """Identify the secret Node associated with the current Node."""
         candidate = self.next
         has_separator = False
-        print(f"FIELD={self.text}")
         while candidate:
-            print(f"CANDIDATE: {candidate.text} ({candidate.type})")
             if candidate.type is NodeType.space:
                 pass
             elif candidate.type is NodeType.quoted_string_closing:
@@ -88,7 +86,6 @@ class Node:
                     return None
             elif candidate.type is NodeType.separator:
                 has_separator = True
-                print("HAS SEP")
             else:
                 return None
             candidate = candidate.next
