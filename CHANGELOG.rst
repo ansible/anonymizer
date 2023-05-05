@@ -1,6 +1,15 @@
 Changelog
 =========
 
+Version 1.2.0 (2023-05-05)
+-------------
+
+- hide_secrets: better management of the quotes (#41)
+- tox: skip_install=True with mypy
+- tox: test using ruff
+- pyproject: configure ruff and reformat the code base
+- sudo's NOPASSWD is not a password field
+
 Version 1.1.5 (2023-04-11)
 -------------
 
