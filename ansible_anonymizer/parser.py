@@ -4,7 +4,7 @@ from collections.abc import Generator
 from enum import Enum
 from typing import Literal, Optional, Union
 
-from ansible_anonymizer.field_checks import is_password_field_name, is_path
+from ansible_anonymizer.field_checks import is_password_field_name
 from ansible_anonymizer.jinja2 import str_jinja2_variable_name
 
 """Parser for YAML-like structure that tolerate error."""
@@ -246,10 +246,10 @@ def combinate_value_fields(root_node: Node) -> None:
     """
     Merge the unquoted value fields.
 
-    In YAML, a value can be an unprotected string with spaces. Internally
-    the parser represent such series of spaces and fields as different
-    Node objects. Since all these objects are actually one single value,
-    we merge them together.
+    In YAML or INI, a value can be an unprotected string with spaces.
+    Internally     the parser represent such series of spaces and fields
+    as different Node objects. Since all these objects are actually one
+    single value, we merge them together.
     """
     current_node = root_node
     mergable_types = [NodeType.space, NodeType.field, NodeType.unknown]
@@ -262,17 +262,20 @@ def combinate_value_fields(root_node: Node) -> None:
 
             while (
                 current_node.type in mergable_types
+                and not current_node.is_password_field_name()
                 and current_node.next
                 and current_node.next.type in mergable_types
                 and not current_node.next.is_password_field_name()
             ):
                 current_node.type = NodeType.unknown
                 current_node.text += current_node.next.text
+                current_node.next.type = NodeType.deleted
+                current_node.next.text = "KILLED"
                 current_node.next = current_node.next.next
                 if current_node.next:
                     current_node.next.previous = current_node
 
-        elif current_node.type is NodeType.separator and current_node.text == ":":
+        elif current_node.type is NodeType.separator:
             post_sep = True
         if current_node.next is None:
             break
@@ -320,8 +323,6 @@ def hide_secret_fields(root_node: Node) -> None:
 
         secret_node = node.get_secret()
         if not secret_node:
-            continue
-        if is_path(secret_node.text):
             continue
 
         if secret_node.type is NodeType.quoted_string_holder:
