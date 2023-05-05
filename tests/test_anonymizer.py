@@ -178,7 +178,7 @@ def test_anonymize_text_block_secret_fields():
                 @^my-secret: "{{ my_secret }}"
                 %@iÜ-secret: "{{ secret }}"
                 quoted-secret: '{{ quoted_secret }}'
-                private_key: ~/.ssh/id_rsa
+                private_key: "{{ private_key }}"
 
     """
     assert anonymize_text_block(source) == expectation
@@ -624,3 +624,18 @@ def test_hide_secrets_multi_secrets():
 
 def test_str_jinja2_variable_name_leading_underscore():
     assert str_jinja2_variable_name("-foo-BAR") == "foo_bar"
+
+
+def test_hide_secrets_aws_profile():
+    origin = """
+    [my-secret-account]
+    aws_access_key_id = BJIA5UUFYYOOKZQODC3F
+    aws_secret_access_key = NeTL/2vPPnlnb/8RBtsw3EwnNjflDbgZiDmRskhb
+    """
+
+    expectation = """
+    [my-secret-account]
+    aws_access_key_id = "{{ aws_access_key_id }}"
+    aws_secret_access_key = "{{ aws_secret_access_key }}"
+    """
+    assert hide_secrets(dedent(origin)) == dedent(expectation)

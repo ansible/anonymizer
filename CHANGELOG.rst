@@ -1,6 +1,10 @@
 Changelog
 =========
 
+Version 1.2.2 (2023-05-05)
+
+- adjustment to handle aws/credentials
+
 Version 1.2.1 (2023-05-05)
 -------------
 
