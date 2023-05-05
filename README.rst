@@ -41,3 +41,9 @@ But you can also anonymize a block of text:
    ... """
    >>> anonymizer.anonymize_text_block(some_text)
    '\n- name: a task\n  a_module:\n    secret: {{ }}\n'
+
+You can also use the ``ansible-anonymizer`` command:
+
+.. code-block:: console
+
+   ansible-anonymizer my-secret-file
