@@ -10,44 +10,14 @@ from re import Match
 from typing import Any, Callable, Union
 from zlib import crc32
 
-# Denylist regex to TC of secrets filter
-# From detect_secrets.plugins (Apache v2 License)
-DENYLIST = (
-    "api_?key",
-    "auth_?key",
-    "service_?key",
-    "account_?key",
-    "db_?key",
-    "database_?key",
-    "priv_?key",
-    "private_?key",
-    "client_?key",
-    r"host\w*_key",
-    "db_?pass",
-    "database_?pass",
-    "key_?pass",
-    "key_?data",
-    "key_?name",
-    "password",
-    "passwd",
-    "pass",
-    "pwd",
-    "secret",
-    "contraseña",
-    "contrasena",
-    "access_key",
+from ansible_anonymizer.field_checks import (
+    is_jinja2_expression,
+    is_password_field_name,
+    is_path,
+    is_uuid_string,
 )
-AFFIX_REGEX = r"\w*"
-DENYLIST_REGEX = r"|".join(DENYLIST)
-# Support for suffix after keyword i.e. password_secure = "value"
-DENYLIST_REGEX_WITH_PREFIX = fr"({DENYLIST_REGEX}){AFFIX_REGEX}"
-
-
-def str_jinja2_variable_name(name: str) -> str:
-    """Sanitize a string to make it suitable to become a Jinja2 variable."""
-    name = name.replace("-", "_")
-    name = re.sub(r"[^a-z_]", "", name, flags=re.IGNORECASE)
-    return name
+from ansible_anonymizer.jinja2 import str_jinja2_variable_name
+from ansible_anonymizer.parser import hide_secrets
 
 
 def gen_email_address(original: Match[str]) -> str:
@@ -76,41 +46,6 @@ def gen_email_address(original: Match[str]) -> str:
     idx = crc32(original.group("email").encode()) % len(samples)
     name = samples[idx]
     return f"{name}{idx}@example.com"
-
-
-def is_password_field_name(name: str) -> bool:
-    flags = re.MULTILINE | re.IGNORECASE
-    if is_allowed_password_field(name):
-        return False
-    return re.search(DENYLIST_REGEX_WITH_PREFIX, name, flags=flags) is not None
-
-
-def is_allowed_password_field(field_name: str) -> bool:
-    """Return True if field_name should not be considered as a password."""
-    # Valid field found in sudo configuration
-    if field_name == "NOPASSWD":
-        return True
-    return False
-
-
-def is_jinja2_expression(value: str) -> bool:
-    """Check if an unquoted string hold a Jinja2 variable."""
-    if re.match(r"^\s*{{\s*.*?\s*}}\s*$", value):
-        return True
-
-    return False
-
-
-def is_uuid_string(value: str) -> bool:
-    """Check if a given value is a UUID string."""
-    if re.match(
-        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        value,
-        flags=re.IGNORECASE,
-    ):
-        return True
-
-    return False
 
 
 common_ipv4_networks = [
@@ -197,14 +132,6 @@ def anonymize_field(value: str, name: str) -> str:
     return anonymize_text_block(value)
 
 
-def is_path(content: str) -> bool:
-    # Rather conservative on purpose to avoid a false
-    # positive
-    if "/" not in content:
-        return False
-    return bool(re.match(r"^(|~)[a-z0-9_/\.-]+$", content, flags=re.IGNORECASE))
-
-
 def anonymize_struct(o: Any, key_name: str = "") -> Any:
     def key_name_str(k: Any) -> str:
         return k if isinstance(k, str) else ""
@@ -224,26 +151,6 @@ def anonymize_struct(o: Any, key_name: str = "") -> Any:
 def anonymize(o: Any, key_name: str = "") -> Any:
     """Deprecated: use anonymize_struct() instead."""
     return anonymize_struct(o, key_name=key_name)
-
-
-def hide_secrets(block: str) -> str:
-    flags = re.MULTILINE | re.IGNORECASE
-
-    def _rewrite(m: re.Match[str]) -> str:
-        value = m.group("value")
-        field = m.group("field")
-        if is_path(value):
-            return m.group(0)
-        if is_allowed_password_field(field):
-            return m.group(0)
-        return f'{field}: "{anonymize_field(value, field)}"'
-
-    return re.sub(
-        fr"(?P<field>(|\S+){DENYLIST_REGEX_WITH_PREFIX}):\s*(?P<value>.*)",
-        _rewrite,
-        block,
-        flags=flags,
-    )
 
 
 def hide_emails(block: str) -> str:

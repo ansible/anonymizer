@@ -18,16 +18,19 @@ from ansible_anonymizer.anonymizer import (
     hide_us_phone_numbers,
     hide_us_ssn,
     hide_user_name,
-    is_allowed_password_field,
-    is_jinja2_expression,
-    is_password_field_name,
-    is_path,
-    is_uuid_string,
     redact_ip_address,
     redact_ipv4_address,
     redact_ipv6_address,
     unquote,
 )
+from ansible_anonymizer.field_checks import (
+    is_allowed_password_field,
+    is_jinja2_expression,
+    is_password_field_name,
+    is_path,
+    is_uuid_string,
+)
+from ansible_anonymizer.jinja2 import str_jinja2_variable_name
 
 
 def test_is_password_field_name():
@@ -173,8 +176,8 @@ def test_anonymize_text_block_secret_fields():
             a-broken-key:
                 my-secret: "{{ my_secret }}"
                 @^my-secret: "{{ my_secret }}"
-                %@iÜ-secret: "{{ i_secret }}"
-                quoted-secret: "{{ quoted_secret }}"
+                %@iÜ-secret: "{{ secret }}"
+                quoted-secret: '{{ quoted_secret }}'
                 private_key: ~/.ssh/id_rsa
 
     """
@@ -454,3 +457,170 @@ def test_is_allowed_password_field():
 def test_hide_secret_sudo_line():
     source = 'line="%wheel\tALL=(ALL)\tNOPASSWD: ALL"'
     assert hide_secrets(source) == source
+
+
+def test_hide_secrets_quoted():
+    assert (
+        hide_secrets("ansible: 'ALL=(ALL) PASSWD: \\\"{{NOPASSWD'")
+        == "ansible: 'ALL=(ALL) PASSWD: {{ passwd }}'"
+    )
+    assert (
+        hide_secrets("ansible: 'ALL=(ALL) PASSWD: \\\"{{NOPASSWD'")
+        == "ansible: 'ALL=(ALL) PASSWD: {{ passwd }}'"
+    )
+    assert (
+        hide_secrets("password1: 'foobar'\npassword: 'barfoo'")
+        == "password1: '{{ password1 }}'\npassword: '{{ password }}'"
+    )
+    assert (
+        hide_secrets('%wheel	ALL=(ALL)	PASSWD: "ALL"') == '%wheel	ALL=(ALL)	PASSWD: "{{ passwd }}"'
+    )
+
+
+def test_hide_secrets_preserve_protected_quotes():
+    assert (
+        hide_secrets('line: "%ansible password=\'foobar\'"')
+        == 'line: "%ansible password=\'{{ password }}\'"'
+    )
+
+
+def test_hide_secrets_trailing_secret():
+    origin = "password1: foobar\npassword: barfoo"
+    expectation = 'password1: "{{ password1 }}"\npassword: "{{ password }}"'
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_quoted_field():
+    origin = """
+    "password9": "my_password10: maxplus"
+    """
+    expectation = """
+    "password9": "{{ password9 }}"
+    """
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_unquoted_field():
+    origin = """
+    password9: "my_password10: maxplus"
+    """
+    expectation = """
+    password9: "{{ password9 }}"
+    """
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_pattern_within_quoted_string():
+    origin = """
+    'password9: "my_password10: maxplus"'
+    """
+    expectation = """
+    'password9: "{{ password9 }}"'
+    """
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_long_string():
+    origin = """
+    passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+    """  # noqa: E501
+    expectation = """
+    passwd: "{{ passwd }}"
+    """
+    print(hide_secrets(origin))
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_2_level_of_quotes():
+    origin = """
+    "aaa'
+       passwd: bob'"
+    """
+    expectation = """
+    "aaa'
+       passwd: {{ passwd }}'"
+    """
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_protected_double_quotes():
+    origin = """
+    "aaa
+       \\"passwd: bob\\""
+    """
+    expectation = """
+    "aaa
+       \\"passwd: {{ passwd }}\\""
+    """
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_empty():
+    origin = ""
+    expectation = ""
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_field_only():
+    origin = "passwd"
+    expectation = "passwd"
+    assert hide_secrets(origin) == expectation
+
+
+def test_hide_secrets_vars_file():
+    from textwrap import dedent
+
+    origin = """
+    ansible_user: root
+    ansible_host: esxi1-gw.ws.testing.ansible.com
+    ansible_password: '!234AaAa56'
+    """
+    expectation = """
+    ansible_user: root
+    ansible_host: esxi1-gw.ws.testing.ansible.com
+    ansible_password: '{{ ansible_password }}'
+    """
+    assert hide_secrets(dedent(origin)) == dedent(expectation)
+
+
+def test_hide_secrets_unquoted_string():
+    from textwrap import dedent
+
+    origin = """
+    ansible_password: an unquoted string
+    """
+    expectation = """
+    ansible_password: "{{ ansible_password }}"
+    """
+    assert hide_secrets(dedent(origin)) == dedent(expectation)
+
+
+def test_hide_secrets_multi_secrets():
+    origin = """
+    '(?i)password1:': "{{ _iosxr_password }}"
+    "this is somethingpass: password2: else my_password3: 'password4: _Agaim': barfoo"
+    password5: maxplus
+    password6: "maxplus"
+    password7: "my_password8: maxplus"
+    "password9": "my_password10: maxplus"
+    password11: "my_password12:
+              maxplus"
+
+    passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+    """  # noqa: E501
+    expectation = """
+    '(?i)password1:': "{{ _iosxr_password }}"
+    "this is somethingpass: {{ somethingpass }}: else my_password3: '{{ my_password3 }}': barfoo"
+    password5: "{{ password5 }}"
+    password6: "{{ password6 }}"
+    password7: "{{ password7 }}"
+    "password9": "{{ password9 }}"
+    password11: "{{ password11 }}"
+
+    passwd: "{{ passwd }}"
+    """
+    assert hide_secrets(origin) == expectation
+
+
+def test_str_jinja2_variable_name_leading_underscore():
+    assert str_jinja2_variable_name("-foo-BAR") == "foo_bar"
