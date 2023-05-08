@@ -1,0 +1,5 @@
+[allowlist]
+  description = "The fake secrets from the test-suites"
+  paths = [
+    "tests/test_anonymizer.py"
+  ]
