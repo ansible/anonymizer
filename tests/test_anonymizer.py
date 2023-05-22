@@ -639,3 +639,48 @@ def test_hide_secrets_aws_profile():
     aws_secret_access_key = "{{ aws_secret_access_key }}"
     """
     assert hide_secrets(dedent(origin)) == dedent(expectation)
+
+
+def test_parser_simple_key_value_string():
+    sample = 'config_reverseproxy_oauth_password: "passw0rd"'
+    expectation = [
+        ("", NodeType.quoted_string_holder),
+        ("config_reverseproxy_oauth_password", NodeType.field),
+        (":", NodeType.separator),
+        (" ", NodeType.space),
+        ('"', NodeType.quoted_string_holder),
+        ("passw0rd", NodeType.field),
+        ('"', NodeType.quoted_string_closing),
+    ]
+    root_node = parser(sample)
+    expanded = [(c.text, c.type) for c in flatten(root_node)]
+    assert expanded == expectation
+
+
+def test_parser_multi_spaces_before_simple_key_value_string():
+    sample = 'config_reverseproxy_oauth_password:      "passw0rd"'
+    expectation = [
+        ("", NodeType.quoted_string_holder),
+        ("config_reverseproxy_oauth_password", NodeType.field),
+        (":", NodeType.separator),
+        (" ", NodeType.space),
+        (" ", NodeType.space),
+        (" ", NodeType.space),
+        (" ", NodeType.space),
+        (" ", NodeType.space),
+        (" ", NodeType.space),
+        ('"', NodeType.quoted_string_holder),
+        ("passw0rd", NodeType.field),
+        ('"', NodeType.quoted_string_closing),
+    ]
+    root_node = parser(sample)
+    expanded = [(c.text, c.type) for c in flatten(root_node)]
+    assert expanded == expectation
+
+
+def test_hide_secrets_multi_spaces_before_simple_key_value_string():
+    sample = 'config_reverseproxy_oauth_password:      "passw0rd"'
+    assert (
+        hide_secrets(sample)
+        == 'config_reverseproxy_oauth_password:      "{{ config_reverseproxy_oauth_password }}"'
+    )
