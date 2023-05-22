@@ -257,7 +257,7 @@ def combinate_value_fields(root_node: Node) -> None:
     while current_node:
         if post_sep:
             # We ignore the first space after the : sign
-            if current_node.type is NodeType.space and current_node.next:
+            while current_node.type is NodeType.space and current_node.next:
                 current_node = current_node.next
 
             while (
