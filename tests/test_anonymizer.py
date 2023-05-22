@@ -31,6 +31,7 @@ from ansible_anonymizer.field_checks import (
     is_uuid_string,
 )
 from ansible_anonymizer.jinja2 import str_jinja2_variable_name
+from ansible_anonymizer.parser import NodeType, flatten, parser, combinate_value_fields
 
 
 def test_is_password_field_name():
@@ -684,6 +685,38 @@ def test_parser_get_secret():
     field_name_node = list_of_nodes[1]
     assert field_name_node.text == "config_reverseproxy_oauth_password"
     assert field_name_node.get_secret().text == "my_secret"
+
+
+def test_parser_get_secret():
+    sample = "config_reverseproxy_oauth_password: my_secret"
+    root_node = parser(sample)
+    list_of_nodes = list(flatten(root_node))
+    field_name_node = list_of_nodes[1]
+    assert field_name_node.text == "config_reverseproxy_oauth_password"
+    assert field_name_node.get_secret().text == "my_secret"
+
+ 
+def test_parser_get_secret_with_unquoted_special_chars():
+    sample = "config_reverseproxy_oauth_password: %$#my_secret&"
+    root_node = parser(sample)
+    field_name_node = root_node.next
+    assert field_name_node.text == "config_reverseproxy_oauth_password"
+    # Without combinate_value_fields we only get the first node of the secret
+    assert field_name_node.get_secret().text == "%$#"
+
+    combinate_value_fields(root_node)
+    assert field_name_node.get_secret().text == "%$#my_secret&"
+   
+
+def test_combinate_value_fields():
+    sample = "config_reverseproxy_oauth_password: my!secret%$!"
+    root_node = parser(sample)
+    assert len(list(flatten(root_node))) == 8
+    combinate_value_fields(root_node)
+    assert len(list(flatten(root_node))) == 5
+    expanded = [(c.text, c.type) for c in flatten(root_node)]
+    print(expanded)
+    hide_secrets(sample)
 
 
 def test_hide_secrets_multi_spaces_before_simple_key_value_string():
