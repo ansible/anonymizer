@@ -677,6 +677,14 @@ def test_parser_multi_spaces_before_simple_key_value_string():
     expanded = [(c.text, c.type) for c in flatten(root_node)]
     assert expanded == expectation
 
+def test_parser_get_secret():
+    sample = "config_reverseproxy_oauth_password: my_secret"
+    root_node = parser(sample)
+    list_of_nodes = list(flatten(root_node))
+    field_name_node = list_of_nodes[1]
+    assert field_name_node.text == "config_reverseproxy_oauth_password"
+    assert field_name_node.get_secret().text == "my_secret"
+
 
 def test_hide_secrets_multi_spaces_before_simple_key_value_string():
     sample = 'config_reverseproxy_oauth_password:      "passw0rd"'
