@@ -16,7 +16,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.format == "text":
-        print(anonymize_text_block(args.file_path.read_text()))
+        print(anonymize_text_block(args.file_path.read_text()), end="")
     elif args.format == "yaml":
         print(anonymize_struct(yaml.safe_load(args.file_path.read_text())))
 
