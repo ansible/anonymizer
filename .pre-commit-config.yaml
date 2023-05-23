@@ -49,3 +49,4 @@ repos:
       types: [python]
       additional_dependencies:
         - mypy
+        - types-PyYAML
