@@ -752,3 +752,13 @@ def test_parser_two_passwords_on_same_line():
 def test_parser_one_password_and_one_regular_kv_on_same_line():
     sample = "my_password:      !pass w0rd  some-key: show-this"
     assert hide_secrets(sample) == 'my_password:      "{{ my_password }}"  some-key: show-this'
+
+
+def test_parser_yaml_unquoted_password_with_a_equal_sign():
+    sample = 'my_password:     !pass=w0rd"'
+    assert hide_secrets(sample) == 'my_password:     "{{ my_password }}"'
+
+
+def test_parser_ini_unquoted_password_with_a_colon_sign():
+    sample = 'my_password = !pass:w0rd"'
+    assert hide_secrets(sample) == 'my_password = "{{ my_password }}"'

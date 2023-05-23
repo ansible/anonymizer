@@ -253,13 +253,18 @@ def handle_backslashes(root_node: Node) -> None:
 def combinate_value_fields(root_node: Node) -> None:
     mergable_types = [NodeType.space, NodeType.field, NodeType.unknown, NodeType.space]
 
-    def _is_a_new_key_value(node) -> bool:
+    def _is_a_new_key_value(node: Node) -> bool:
         """Check if the current node is actually the beginning of a new secret key/value."""
+        if not node.next:
+            return False
+
         current = node.next
         if current.type is not NodeType.space:
             return False
 
         while current.type == NodeType.space:
+            if current.next is None:
+                return False
             current = current.next
 
         # if we've got a separator after the field, we prefer to preserve
@@ -267,6 +272,16 @@ def combinate_value_fields(root_node: Node) -> None:
         if current and current.type is NodeType.field and current.next and current.next.text == ":":
             return True
         return False
+
+    def _find_separator_node(node: Node) -> Union[None, Node]:
+        while node and node.next:
+            if node.next.type is NodeType.space:
+                node = node.next
+            elif node.next and node.next.type is NodeType.separator:
+                return node.next
+            else:
+                return None
+        return None
 
     current_node = root_node
     while current_node and current_node.next:
@@ -279,13 +294,22 @@ def combinate_value_fields(root_node: Node) -> None:
         secret_content_ptr = current_node.get_secret()
         if not secret_content_ptr:
             continue
+        separator = _find_separator_node(current_node)
+        if not separator:
+            continue
         if secret_content_ptr.type is NodeType.quoted_string_holder:
             assert secret_content_ptr.closed_by  # for mypy # noqa: S101
             current_node = secret_content_ptr.closed_by
             continue
         while (
             secret_content_ptr.next
-            and secret_content_ptr.next.type in mergable_types
+            and (
+                (secret_content_ptr.next.type in mergable_types)
+                or (
+                    secret_content_ptr.next.type is NodeType.separator
+                    and secret_content_ptr.next.text != separator.text
+                )
+            )
             and not _is_a_new_key_value(secret_content_ptr)
         ):
             print(f"MERGE: '{secret_content_ptr.next.text}'")
