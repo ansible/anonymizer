@@ -568,8 +568,6 @@ def test_hide_secrets_field_only():
 
 
 def test_hide_secrets_vars_file():
-    from textwrap import dedent
-
     origin = """
     ansible_user: root
     ansible_host: esxi1-gw.ws.testing.ansible.com
@@ -584,8 +582,6 @@ def test_hide_secrets_vars_file():
 
 
 def test_hide_secrets_unquoted_string():
-    from textwrap import dedent
-
     origin = """
     ansible_password: an unquoted string
     """
