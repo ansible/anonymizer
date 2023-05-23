@@ -91,6 +91,17 @@ class Node:
             candidate = candidate.next
         return None
 
+    def merge_with_next(self) -> None:
+        """Merge the current node with the next one."""
+        self.type = NodeType.unknown
+        assert self.next  # for mypy # noqa: S101
+        self.text += self.next.text
+        self.next.type = NodeType.deleted
+        self.next.text = "KILLED"
+        self.next = self.next.next
+        if self.next:
+            self.next.previous = self
+
     def is_password_field_name(self) -> bool:
         """Return True if the field name matches the DENYLIST_REGEX regex."""
         return is_password_field_name(self.text)
@@ -193,10 +204,7 @@ def hide_secrets(block: str) -> str:
     root_node = parser(block)
     close_quotes(root_node)
     handle_backslashes(root_node)
-    # Group substring with unknown and field types
-    # combinate_fields(root_node)
     combinate_value_fields(root_node)
-
     hide_secret_fields(root_node)
 
     output = ""
@@ -243,43 +251,45 @@ def handle_backslashes(root_node: Node) -> None:
 
 
 def combinate_value_fields(root_node: Node) -> None:
-    """
-    Merge the unquoted value fields.
+    mergable_types = [NodeType.space, NodeType.field, NodeType.unknown, NodeType.space]
 
-    In YAML or INI, a value can be an unprotected string with spaces.
-    Internally     the parser represent such series of spaces and fields
-    as different Node objects. Since all these objects are actually one
-    single value, we merge them together.
-    """
+    def _is_a_new_key_value(node) -> bool:
+        """Check if the current node is actually the beginning of a new secret key/value."""
+        current = node.next
+        if current.type is not NodeType.space:
+            return False
+
+        while current.type == NodeType.space:
+            current = current.next
+
+        # if we've got a separator after the field, we prefer to preserve
+        # it. e.g: secret1: foo secret2: bar, secret1 and secret2 are two distinct seecrets.
+        if current and current.type is NodeType.field and current.next and current.next.text == ":":
+            return True
+        return False
+
     current_node = root_node
-    mergable_types = [NodeType.space, NodeType.field, NodeType.unknown]
-    post_sep = False
-    while current_node:
-        if post_sep:
-            # We ignore the first space after the : sign
-            while current_node.type is NodeType.space and current_node.next:
-                current_node = current_node.next
-
-            while (
-                current_node.type in mergable_types
-                and not current_node.is_password_field_name()
-                and current_node.next
-                and current_node.next.type in mergable_types
-                and not current_node.next.is_password_field_name()
-            ):
-                current_node.type = NodeType.unknown
-                current_node.text += current_node.next.text
-                current_node.next.type = NodeType.deleted
-                current_node.next.text = "KILLED"
-                current_node.next = current_node.next.next
-                if current_node.next:
-                    current_node.next.previous = current_node
-
-        elif current_node.type is NodeType.separator:
-            post_sep = True
-        if current_node.next is None:
-            break
+    while current_node and current_node.next:
         current_node = current_node.next
+        if current_node.type is not NodeType.field:
+            continue
+        if not current_node.is_password_field_name():
+            continue
+
+        secret_content_ptr = current_node.get_secret()
+        if not secret_content_ptr:
+            continue
+        if secret_content_ptr.type is NodeType.quoted_string_holder:
+            assert secret_content_ptr.closed_by  # for mypy # noqa: S101
+            current_node = secret_content_ptr.closed_by
+            continue
+        while (
+            secret_content_ptr.next
+            and secret_content_ptr.next.type in mergable_types
+            and not _is_a_new_key_value(secret_content_ptr)
+        ):
+            print(f"MERGE: '{secret_content_ptr.next.text}'")
+            secret_content_ptr.merge_with_next()
 
 
 def print_node(root_node: Node) -> None:
