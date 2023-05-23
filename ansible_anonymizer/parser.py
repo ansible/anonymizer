@@ -70,8 +70,7 @@ class Node:
             if candidate.type is NodeType.space:
                 pass
             elif candidate.type is NodeType.quoted_string_closing:
-                if candidate.holder is not self.holder:
-                    raise ParserError()
+                pass
             elif has_separator:
                 if candidate.type is NodeType.securized:
                     # We should not come back on the same node
