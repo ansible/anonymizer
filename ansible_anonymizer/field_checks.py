@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+"""Functions used to identify the field types."""
 import re
 
 # Denylist regex to TC of secrets filter
@@ -44,6 +44,7 @@ def is_allowed_password_field(field_name: str) -> bool:
 
 
 def is_password_field_name(name: str) -> bool:
+    """Return True if name looks like a password field name."""
     flags = re.MULTILINE | re.IGNORECASE
     if is_allowed_password_field(name):
         return False
@@ -71,6 +72,7 @@ def is_uuid_string(value: str) -> bool:
 
 
 def is_path(content: str) -> bool:
+    """Return True if content is a path."""
     # Rather conservative on purpose to avoid a false
     # positive
     if "/" not in content:
