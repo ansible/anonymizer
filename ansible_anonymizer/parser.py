@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-
+"""Parser for YAML-like structure that is error tolerant."""
 from collections.abc import Generator
 from enum import Enum
-from typing import Literal, Optional, Union
+from typing import Optional, Union
 
 from ansible_anonymizer.field_checks import is_password_field_name
 from ansible_anonymizer.jinja2 import str_jinja2_variable_name
 
-"""Parser for YAML-like structure that tolerate error."""
-
-quote_t = Literal['"', "'"]
-
 
 class NodeType(Enum):
     """The different type of Node returned by the parser."""
+
+    # pylint: disable=invalid-name
 
     unknown = 0
     field = 1
@@ -32,6 +30,7 @@ class ParserError(Exception):
 
 
 class Node:
+    # pylint: disable=too-many-instance-attributes
     """A element returned by the parser."""
 
     def __init__(self, begin_at: int) -> None:
@@ -75,14 +74,13 @@ class Node:
                 if candidate.type is NodeType.securized:
                     # We should not come back on the same node
                     raise ParserError
-                if candidate.type is NodeType.field:
+                if candidate.type in [
+                    NodeType.field,
+                    NodeType.unknown,
+                    NodeType.quoted_string_holder,
+                ]:
                     return candidate
-                if candidate.type is NodeType.unknown:
-                    return candidate
-                if candidate.type is NodeType.quoted_string_holder:
-                    return candidate
-                else:
-                    return None
+                return None
             elif candidate.type is NodeType.separator:
                 has_separator = True
             else:
@@ -110,25 +108,30 @@ class Node:
         return f"TEXT={self.text}, BEGIN_AT={self.begin_at}, TYPE={self.type}"
 
 
-def is_valid_first_character_for_a_variable(c: str) -> bool:
+def is_valid_first_character_for_a_variable(char: str) -> bool:
     """Assuming variable names cannot start with a digit."""
-    return c.isascii() and (c.isalpha() or c in ["-", "_"])
+    return char.isascii() and (char.isalpha() or char in ["-", "_"])
 
 
-def is_valid_variable_character(c: str) -> bool:
+def is_valid_variable_character(char: str) -> bool:
+    """Return True if the character can be part of an Ansible variable name."""
     # note: isnumeric accepts a wider range than just the 0-9
-    return c.isascii() and (c.isalpha() or c.isnumeric() or c in ["-", "_"])
+    return char.isascii() and (char.isalpha() or char.isnumeric() or char in ["-", "_"])
 
 
-def is_field_value_sep(c: str) -> bool:
-    return c in [":", "="]
+def is_field_value_sep(char: str) -> bool:
+    """Return True if the character is : or =."""
+    return char in [":", "="]
 
 
 def parser(block: str) -> Node:
+    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-statements
+    """Digest a text block an return a list of Nodes that will be simplified later."""
     root_node = Node(0)
     root_node.type = NodeType.quoted_string_holder
     current_node = root_node
-    for pos, c in enumerate(block):
+    for pos, c in enumerate(block):  # pylint: disable=invalid-name
         if c == "\\":
             new_node = Node(pos)
             new_node.attach(previous=current_node)
@@ -200,6 +203,7 @@ def parser(block: str) -> Node:
 
 
 def hide_secrets(block: str) -> str:
+    """Return block without any potential secrets."""
     root_node = parser(block)
     close_quotes(root_node)
     handle_backslashes(root_node)
@@ -250,6 +254,7 @@ def handle_backslashes(root_node: Node) -> None:
 
 
 def combinate_value_fields(root_node: Node) -> None:
+    """Combinate the unquoted value strings."""
     mergable_types = [NodeType.space, NodeType.field, NodeType.unknown, NodeType.space]
 
     def _is_a_new_key_value(node: Node) -> bool:
@@ -315,21 +320,19 @@ def combinate_value_fields(root_node: Node) -> None:
             secret_content_ptr.merge_with_next()
 
 
-def print_node(root_node: Node) -> None:
-    for node in flatten(root_node):
-        print(node, end="")
-
-
 def flatten(node: Node) -> Generator[Node, None, None]:
-    n = node
-    while n:
-        yield n
-        if not n.next:
+    """Iterator that go through each nodes and follow the original text order."""
+    current = node
+    while current:
+        yield current
+        if not current.next:
             break
-        n = n.next
+        current = current.next
 
 
 def hide_secret_fields(root_node: Node) -> None:
+    """Remove the secret fields from a series of nodes."""
+
     def hide_quoted_string(node: Node, secret_node: Node) -> None:
         assert secret_node.closed_by  # for mypy # noqa: S101
         secret_node.next = secret_node.closed_by.next
@@ -338,7 +341,7 @@ def hide_secret_fields(root_node: Node) -> None:
             f"{secret_node.text}{{{{ {str_jinja2_variable_name(node.text)} }}}}{secret_node.text}"
         )
         if secret_node.next:
-            return hide_secret_fields(secret_node.next)
+            hide_secret_fields(secret_node.next)
 
     def hide_regular_field(node: Node, secret_node: Node) -> None:
         secret_node.type = NodeType.securized
@@ -346,7 +349,7 @@ def hide_secret_fields(root_node: Node) -> None:
         quote = "" if secret_node.holder.text else '"'
         secret_node.text = f"{quote}{{{{ {str_jinja2_variable_name(node.text)} }}}}{quote}"
         if secret_node.next:
-            return hide_secret_fields(secret_node.next)
+            hide_secret_fields(secret_node.next)
 
     for node in flatten(root_node):
         if node.type is not NodeType.field:
@@ -358,6 +361,8 @@ def hide_secret_fields(root_node: Node) -> None:
         if not secret_node:
             continue
 
+        # pylint: disable=inconsistent-return-statements
+        # pylint: disable=no-else-return
         if secret_node.type is NodeType.quoted_string_holder:
             return hide_quoted_string(node, secret_node)
         else:

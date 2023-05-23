@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+"""Jinja2 related function(s)."""
 import re
 
 
