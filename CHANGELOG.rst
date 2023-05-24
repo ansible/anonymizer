@@ -1,7 +1,27 @@
 Changelog
 =========
 
+Version 1.3.0 (2023-05-24)
+-------------
+
+- tests: split up test_anonymizer.py
+- pre-commit: only check ansible_anonymizer
+- pre-commit: mypy needs types-PyYAML
+- pylint: various fixes to get pylint to pass
+- pre-commmit: replace reorder_python_imports with ruff
+- tests: don't redefine dedent
+- cli: don't had an extra \n
+- parser: remove an uncessary ParserError exception
+- handle : or = in password field
+- better handling of unquoted password
+- extra tests
+- test: cover Node.get_secret()
+- properly handle series of spaces before password
+- add a .gitleaks.toml file
+
+
 Version 1.2.2 (2023-05-05)
+-------------
 
 - adjustment to handle aws/credentials
 
