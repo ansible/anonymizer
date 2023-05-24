@@ -32,7 +32,8 @@ def test_hide_secrets_quoted():
         == "password1: '{{ password1 }}'\npassword: '{{ password }}'"
     )
     assert (
-        hide_secrets('%wheel	ALL=(ALL)	PASSWD: "ALL"') == '%wheel	ALL=(ALL)	PASSWD: "{{ passwd }}"'
+        hide_secrets('%wheel	ALL=(ALL)	PASSWD: "ALL"')
+        == '%wheel	ALL=(ALL)	PASSWD: "{{ passwd }}"'  # noqa: E501
     )
 
 
