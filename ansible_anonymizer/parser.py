@@ -316,7 +316,6 @@ def combinate_value_fields(root_node: Node) -> None:
             )
             and not _is_a_new_key_value(secret_content_ptr)
         ):
-            print(f"MERGE: '{secret_content_ptr.next.text}'")
             secret_content_ptr.merge_with_next()
 
 
