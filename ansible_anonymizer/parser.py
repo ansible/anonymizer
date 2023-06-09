@@ -2,8 +2,10 @@
 """Parser for YAML-like structure that is error tolerant."""
 from collections.abc import Generator
 from enum import Enum
+from string import Template
 from typing import Optional, Union
 
+from ansible_anonymizer.config import Config
 from ansible_anonymizer.field_checks import is_password_field_name
 from ansible_anonymizer.jinja2 import str_jinja2_variable_name
 
@@ -202,13 +204,15 @@ def parser(block: str) -> Node:
     return root_node
 
 
-def hide_secrets(block: str) -> str:
+def hide_secrets(block: str, config: Optional[Config] = None) -> str:
     """Return block without any potential secrets."""
+    if not config:
+        config = Config()
     root_node = parser(block)
     close_quotes(root_node)
     handle_backslashes(root_node)
     combinate_value_fields(root_node)
-    hide_secret_fields(root_node)
+    hide_secret_fields(root_node, config.value_template)
 
     output = ""
     for node in flatten(root_node):
@@ -329,26 +333,30 @@ def flatten(node: Node) -> Generator[Node, None, None]:
         current = current.next
 
 
-def hide_secret_fields(root_node: Node) -> None:
+def hide_secret_fields(root_node: Node, value_template: Template) -> None:
     """Remove the secret fields from a series of nodes."""
 
     def hide_quoted_string(node: Node, secret_node: Node) -> None:
         assert secret_node.closed_by  # for mypy # noqa: S101
+        variable_name = str_jinja2_variable_name(node.text)
         secret_node.next = secret_node.closed_by.next
         secret_node.type = NodeType.securized
         secret_node.text = (
-            f"{secret_node.text}{{{{ {str_jinja2_variable_name(node.text)} }}}}{secret_node.text}"
+            secret_node.text
+            + value_template.substitute(variable_name=variable_name)
+            + secret_node.text
         )
         if secret_node.next:
-            hide_secret_fields(secret_node.next)
+            hide_secret_fields(secret_node.next, value_template=value_template)
 
     def hide_regular_field(node: Node, secret_node: Node) -> None:
         secret_node.type = NodeType.securized
         assert secret_node.holder  # for mypy # noqa: S101
+        variable_name = str_jinja2_variable_name(node.text)
         quote = "" if secret_node.holder.text else '"'
-        secret_node.text = f"{quote}{{{{ {str_jinja2_variable_name(node.text)} }}}}{quote}"
+        secret_node.text = quote + value_template.substitute(variable_name=variable_name) + quote
         if secret_node.next:
-            hide_secret_fields(secret_node.next)
+            hide_secret_fields(secret_node.next, value_template=value_template)
 
     for node in flatten(root_node):
         if node.type is not NodeType.field:
