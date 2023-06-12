@@ -5,7 +5,6 @@ from enum import Enum
 from typing import Optional, Union
 
 from ansible_anonymizer.field_checks import is_password_field_name
-from ansible_anonymizer.jinja2 import str_jinja2_variable_name
 
 
 class NodeType(Enum):
@@ -23,6 +22,7 @@ class NodeType(Enum):
     securized = 7
     backslash = 8
     deleted = 9
+    secret = 10
 
 
 class ParserError(Exception):
@@ -41,6 +41,8 @@ class Node:
         self.text: str = ""
         self.type: NodeType = NodeType.unknown
         self.holder: Optional["Node"] = None
+        # Node of the field that point on this secret
+        self.secret_value_of: Optional["Node"] = None
 
         # NOTE: Fields only used with quoted strings (called `holder`)
         self.closed_by: Optional["Node"] = None
@@ -124,7 +126,7 @@ def is_field_value_sep(char: str) -> bool:
     return char in [":", "="]
 
 
-def parser(block: str) -> Node:
+def breakup_elements(block: str) -> Node:
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
     """Digest a text block an return a list of Nodes that will be simplified later."""
@@ -178,6 +180,7 @@ def parser(block: str) -> Node:
             else:
                 new_node = Node(pos)
                 new_node.attach(previous=previous_node)
+                new_node.type = NodeType.field
                 current_node = new_node
         elif is_field_value_sep(c):
             new_node = Node(pos)
@@ -200,24 +203,22 @@ def parser(block: str) -> Node:
             current_node = new_node
         else:
             # Should never happend
+            new_node = Node(pos)
+            new_node.attach(previous=previous_node)
             current_node = new_node
 
         current_node.text += c
     return root_node
 
 
-def hide_secrets(block: str) -> str:
+def parse_raw_block(block: str) -> Node:
     """Return block without any potential secrets."""
-    root_node = parser(block)
+    root_node = breakup_elements(block)
     close_quotes(root_node)
     handle_backslashes(root_node)
     combinate_value_fields(root_node)
-    hide_secret_fields(root_node)
-
-    output = ""
-    for node in flatten(root_node):
-        output += node.text
-    return output
+    identify_secrets(root_node)
+    return root_node
 
 
 def close_quotes(root_node: Node) -> None:
@@ -306,7 +307,6 @@ def combinate_value_fields(root_node: Node) -> None:
         if not separator:
             continue
         if secret_content_ptr.type is NodeType.quoted_string_holder:
-            assert secret_content_ptr.closed_by  # for mypy # noqa: S101
             current_node = secret_content_ptr.closed_by
             continue
         while (
@@ -333,26 +333,26 @@ def flatten(node: Node) -> Generator[Node, None, None]:
         current = current.next
 
 
-def hide_secret_fields(root_node: Node) -> None:
+def identify_secrets(root_node: Node) -> None:
     """Remove the secret fields from a series of nodes."""
 
-    def hide_quoted_string(node: Node, secret_node: Node) -> None:
+    def identify_quoted_string(node: Node, secret_node: Node) -> None:
         assert secret_node.closed_by  # for mypy # noqa: S101
-        secret_node.next = secret_node.closed_by.next
-        secret_node.type = NodeType.securized
-        secret_node.text = (
-            f"{secret_node.text}{{{{ {str_jinja2_variable_name(node.text)} }}}}{secret_node.text}"
-        )
+        cursor = secret_node.next
+        while cursor and cursor != secret_node.closed_by and cursor.next != secret_node.closed_by:
+            cursor.merge_with_next()
+        if secret_node.next and secret_node.next != secret_node.closed_by:
+            secret_node.next.secret_value_of = node
+            secret_node.next.type = NodeType.secret
         if secret_node.next:
-            hide_secret_fields(secret_node.next)
+            identify_secrets(secret_node.next)
 
-    def hide_regular_field(node: Node, secret_node: Node) -> None:
-        secret_node.type = NodeType.securized
+    def identify_regular_field(node: Node, secret_node: Node) -> None:
         assert secret_node.holder  # for mypy # noqa: S101
-        quote = "" if secret_node.holder.text else '"'
-        secret_node.text = f"{quote}{{{{ {str_jinja2_variable_name(node.text)} }}}}{quote}"
+        secret_node.secret_value_of = node
+        secret_node.type = NodeType.secret
         if secret_node.next:
-            hide_secret_fields(secret_node.next)
+            identify_secrets(secret_node.next)
 
     for node in flatten(root_node):
         if node.type is not NodeType.field:
@@ -364,9 +364,6 @@ def hide_secret_fields(root_node: Node) -> None:
         if not secret_node:
             continue
 
-        # pylint: disable=inconsistent-return-statements
-        # pylint: disable=no-else-return
         if secret_node.type is NodeType.quoted_string_holder:
-            return hide_quoted_string(node, secret_node)
-        else:
-            return hide_regular_field(node, secret_node)
+            return identify_quoted_string(node, secret_node)
+        return identify_regular_field(node, secret_node)

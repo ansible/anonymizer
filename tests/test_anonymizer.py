@@ -405,3 +405,76 @@ def test_anonymize_uuid_field():
 
     value = "CE34EFC1-F5E3-4B0F-BB2C-5272319589A7"
     assert anonymize_field(value, field) == value
+
+
+def test_hide_secrets_aws_profile():
+    origin = """
+    [my-secret-account]
+    aws_access_key_id = BJIA5UUFYYOOKZQODC3F
+    aws_secret_access_key = NeTL/2vPPnlnb/8RBtsw3EwnNjflDbgZiDmRskhb
+    """
+
+    expectation = """
+    [my-secret-account]
+    aws_access_key_id = "{{ aws_access_key_id }}"
+    aws_secret_access_key = "{{ aws_secret_access_key }}"
+    """
+    assert anonymize_text_block(dedent(origin)) == dedent(expectation)
+
+
+def test_hide_secrets_multi_secrets():
+    origin = """
+    '(?i)password1:': "{{ _iosxr_password }}"
+    "this is somethingpass: password2: else my_password3: 'password4: _Agaim': barfoo"
+    password5: maxplus
+    password6: "maxplus"
+    password7: "my_password8: maxplus"
+    "password9": "my_password10: maxplus"
+    password11: "my_password12:
+              maxplus"
+
+    passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+    """  # noqa: E501
+    expectation = """
+    '(?i)password1:': "{{ _iosxr_password }}"
+    "this is somethingpass: {{ somethingpass }}: else my_password3: '{{ my_password3 }}': barfoo"
+    password5: "{{ password5 }}"
+    password6: "{{ password6 }}"
+    password7: "{{ password7 }}"
+    "password9": "{{ password9 }}"
+    password11: "{{ password11 }}"
+
+    passwd: "{{ passwd }}"
+    """
+    assert anonymize_text_block(origin) == expectation
+
+
+def test_hide_secret_sudo_line():
+    source = 'line="%wheel\tALL=(ALL)\tNOPASSWD: ALL"'
+    assert anonymize_text_block(source) == source
+
+
+def test_anonymize_text_block_quoted():
+    assert (
+        anonymize_text_block("ansible: 'ALL=(ALL) PASSWD: \\\"{{NOPASSWD'")
+        == "ansible: 'ALL=(ALL) PASSWD: {{ passwd }}'"
+    )
+    assert (
+        anonymize_text_block("ansible: 'ALL=(ALL) PASSWD: \\\"{{NOPASSWD'")
+        == "ansible: 'ALL=(ALL) PASSWD: {{ passwd }}'"
+    )
+    assert (
+        anonymize_text_block("password1: 'foobar'\npassword: 'barfoo'")
+        == "password1: '{{ password1 }}'\npassword: '{{ password }}'"
+    )
+    assert (
+        anonymize_text_block('%wheel	ALL=(ALL)	PASSWD: "ALL"')
+        == '%wheel	ALL=(ALL)	PASSWD: "{{ passwd }}"'  # noqa: E501
+    )
+
+
+def test_anonymize_text_block_preserve_protected_quotes():
+    assert (
+        anonymize_text_block('line: "%ansible password=\'foobar\'"')
+        == 'line: "%ansible password=\'{{ password }}\'"'
+    )

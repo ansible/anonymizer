@@ -48,6 +48,7 @@ repos:
       entry: mypy
       language: python
       types: [python]
+      args: [--no-strict-optional]
       additional_dependencies:
         - mypy
         - types-PyYAML

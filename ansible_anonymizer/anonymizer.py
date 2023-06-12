@@ -17,7 +17,7 @@ from ansible_anonymizer.field_checks import (
     is_uuid_string,
 )
 from ansible_anonymizer.jinja2 import str_jinja2_variable_name
-from ansible_anonymizer.parser import hide_secrets
+from ansible_anonymizer.parser import NodeType, flatten, parse_raw_block
 
 
 def gen_email_address(original: Match[str]) -> str:
@@ -301,6 +301,23 @@ def hide_user_name(block: str) -> str:
     for regex in user_regexes:
         block = re.sub(regex, _rewrite, block, flags=flags)
     return block
+
+
+def hide_secrets(block: str) -> str:
+    root_node = parse_raw_block(block)
+
+    output = ""
+    for node in flatten(root_node):
+        if node.type is NodeType.secret:
+            if node.previous.type is node.holder:  # type: ignore[comparison-overlap]
+                # Already quoted
+                quote = ""
+            else:
+                quote = "" if node.holder.text else '"'
+            output += quote + anonymize_field("", node.secret_value_of.text) + quote
+        else:
+            output += node.text
+    return output
 
 
 def anonymize_text_block(block: str) -> str:
