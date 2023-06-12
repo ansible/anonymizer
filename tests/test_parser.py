@@ -308,3 +308,34 @@ def test_parser_yaml_unquoted_password_with_a_equal_sign():
 def test_parser_ini_unquoted_password_with_a_colon_sign():
     sample = 'my_password = !pass:w0rd"'
     assert hide_secrets(sample) == 'my_password = "{{ my_password }}"'
+
+
+def test_parser_empty_quoted_secret():
+    sample = 'password=""'
+    root_node = parser(sample)
+    node_types_found = [n.type for n in flatten(root_node)]
+    assert node_types_found == [
+        NodeType.quoted_string_holder,
+        NodeType.field,
+        NodeType.separator,
+        NodeType.quoted_string_holder,
+        NodeType.quoted_string_closing,
+    ]
+    nodes_found = list(flatten(root_node))
+    assert nodes_found[-2].closed_by == nodes_found[-1]
+
+
+def test_parser_one_character_quoted_secret():
+    sample = 'password="a"'
+    root_node = parser(sample)
+    node_types_found = [n.type for n in flatten(root_node)]
+    assert node_types_found == [
+        NodeType.quoted_string_holder,
+        NodeType.field,
+        NodeType.separator,
+        NodeType.quoted_string_holder,
+        NodeType.field,
+        NodeType.quoted_string_closing,
+    ]
+    nodes_found = list(flatten(root_node))
+    assert nodes_found[-3].closed_by == nodes_found[-1]
