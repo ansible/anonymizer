@@ -132,15 +132,17 @@ def parser(block: str) -> Node:
     root_node.type = NodeType.quoted_string_holder
     current_node = root_node
     for pos, c in enumerate(block):  # pylint: disable=invalid-name
+        previous_node = current_node
+        current_node = Node(-1)  # -1 == undef, the variable will be reset
         if c == "\\":
             new_node = Node(pos)
-            new_node.attach(previous=current_node)
+            new_node.attach(previous=previous_node)
             new_node.type = NodeType.backslash
             current_node = new_node
         elif c in ["'", '"']:
-            is_protected = current_node.type is NodeType.backslash
+            is_protected = previous_node.type is NodeType.backslash
 
-            holder = current_node.holder
+            holder: Optional[Node] = previous_node
             while holder:
                 if (
                     holder.text == c
@@ -152,7 +154,7 @@ def parser(block: str) -> Node:
 
             if holder:
                 new_node = Node(pos)
-                new_node.attach(previous=current_node)
+                new_node.attach(previous=previous_node)
                 new_node.type = NodeType.quoted_string_closing
                 holder.closed_by = new_node
                 current_node = new_node
@@ -160,43 +162,45 @@ def parser(block: str) -> Node:
                 new_node = Node(pos)
                 new_node.type = NodeType.quoted_string_holder
                 new_node.is_protected = is_protected
-                new_node.attach(previous=current_node)
+                new_node.attach(previous=previous_node)
                 current_node = new_node
         elif is_valid_first_character_for_a_variable(c):
-            if current_node.type is NodeType.field:
-                pass
+            if previous_node.type is NodeType.field:
+                current_node = previous_node
             else:
                 new_node = Node(pos)
-                new_node.attach(previous=current_node)
+                new_node.attach(previous=previous_node)
                 new_node.type = NodeType.field
                 current_node = new_node
         elif is_valid_variable_character(c):
-            if current_node.type is NodeType.field:
-                pass
-            elif current_node.type is not NodeType.unknown:
+            if previous_node.type is NodeType.field:
+                current_node = previous_node
+            else:
                 new_node = Node(pos)
-                new_node.attach(previous=current_node)
+                new_node.attach(previous=previous_node)
                 current_node = new_node
         elif is_field_value_sep(c):
             new_node = Node(pos)
-            new_node.attach(previous=current_node)
+            new_node.attach(previous=previous_node)
             new_node.type = NodeType.separator
             current_node = new_node
         elif c == "\n":
             new_node = Node(pos)
-            new_node.attach(previous=current_node)
+            new_node.attach(previous=previous_node)
             new_node.type = NodeType.new_line
             current_node = new_node
         elif c == " ":
             new_node = Node(pos)
-            new_node.attach(previous=current_node)
+            new_node.attach(previous=previous_node)
             new_node.type = NodeType.space
             current_node = new_node
+        elif previous_node.type is not NodeType.unknown:
+            new_node = Node(pos)
+            new_node.attach(previous=previous_node)
+            current_node = new_node
         else:
-            if current_node.type is not NodeType.unknown:
-                new_node = Node(pos)
-                new_node.attach(previous=current_node)
-                current_node = new_node
+            # Should never happend
+            current_node = new_node
 
         current_node.text += c
     return root_node
