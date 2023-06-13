@@ -1,7 +1,7 @@
 Changelog
 =========
 
-Version 1.4.0 (2023-05-24)
+Version 1.4.0 (2023-06-13)
 -------------
 
 - fix the parser when a string is an empty quoted string (``""``)
