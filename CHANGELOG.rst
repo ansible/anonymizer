@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Version 1.4.0 (2023-05-24)
+-------------
+
+- fix the parser when a string is an empty quoted string (``""``)
+- refactoring to properly isolate the parsing in ``ansible_anonymizer.parser``
+- add ability to customize the secret substitution
+- README: minor adjustments and a new "limitations" section
+
 Version 1.3.0 (2023-05-24)
 -------------
 
