@@ -7,7 +7,8 @@ import re
 from collections.abc import Generator
 from ipaddress import IPv4Address, IPv6Address
 from re import Match
-from typing import Any, Callable, Union
+from string import Template
+from typing import Any, Callable, Optional, Union
 from zlib import crc32
 
 from ansible_anonymizer.field_checks import (
@@ -118,7 +119,7 @@ def unquote(value: str) -> str:
     return value
 
 
-def anonymize_field(value: str, name: str) -> str:
+def anonymize_field(value: str, name: str, value_template: Template) -> str:
     v = value.strip()
     if is_uuid_string(v):
         return value
@@ -128,11 +129,14 @@ def anonymize_field(value: str, name: str) -> str:
         if is_jinja2_expression(unquote(v)):
             return unquote(v)
         variable_name = str_jinja2_variable_name(name)
-        return f"{{{{ { variable_name } }}}}"
+        return value_template.substitute(variable_name=variable_name)
     return anonymize_text_block(value)
 
 
-def anonymize_struct(o: Any, key_name: str = "") -> Any:
+def anonymize_struct(o: Any, key_name: str = "", value_template: Optional[Template] = None) -> Any:
+    if not value_template:
+        value_template = Template("{{ $variable_name }}")
+
     def key_name_str(k: Any) -> str:
         return k if isinstance(k, str) else ""
 
@@ -140,11 +144,14 @@ def anonymize_struct(o: Any, key_name: str = "") -> Any:
         key_name = str(key_name)
 
     if isinstance(o, dict):
-        return {k: anonymize_struct(v, key_name=key_name_str(k)) for k, v in o.items()}
+        return {
+            k: anonymize_struct(v, key_name=key_name_str(k), value_template=value_template)
+            for k, v in o.items()
+        }
     if isinstance(o, list):
-        return [anonymize_struct(v, key_name=key_name) for v in o]
+        return [anonymize_struct(v, key_name=key_name, value_template=value_template) for v in o]
     if isinstance(o, str):
-        return anonymize_field(o, key_name)
+        return anonymize_field(o, key_name, value_template)
     return o
 
 
@@ -303,7 +310,7 @@ def hide_user_name(block: str) -> str:
     return block
 
 
-def hide_secrets(block: str) -> str:
+def hide_secrets(block: str, value_template: Template) -> str:
     root_node = parse_raw_block(block)
 
     output = ""
@@ -314,25 +321,24 @@ def hide_secrets(block: str) -> str:
                 quote = ""
             else:
                 quote = "" if node.holder.text else '"'
-            output += quote + anonymize_field("", node.secret_value_of.text) + quote
+            output += quote + anonymize_field("", node.secret_value_of.text, value_template) + quote
         else:
             output += node.text
     return output
 
 
-def anonymize_text_block(block: str) -> str:
-    transformation = [
-        hide_comments,
-        hide_secrets,
-        hide_emails,
-        hide_ip_addresses,
-        hide_us_ssn,
-        hide_mac_addresses,
-        hide_us_phone_numbers,
-        hide_credit_cards,
-        hide_user_name,
-    ]
+def anonymize_text_block(block: str, value_template: Optional[Template] = None) -> str:
+    if not value_template:
+        value_template = Template("{{ $variable_name }}")
 
-    for t in transformation:
-        block = t(block)
+    block = hide_comments(block)
+    block = hide_secrets(block, value_template)
+    block = hide_emails(block)
+    block = hide_ip_addresses(block)
+    block = hide_us_ssn(block)
+    block = hide_mac_addresses(block)
+    block = hide_us_phone_numbers(block)
+    block = hide_credit_cards(block)
+    block = hide_user_name(block)
+
     return block
