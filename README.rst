@@ -68,8 +68,8 @@ You can customize it with the ``value_template`` parameter:
     #  {'password': '_password_'}
 
 
-limitations
+Limitations
 -----------
 
 - ``anonymize_text_block()`` relies on its own text parser which only support a subset of YAML features. Because of this, it may not be able to identify some PII. When possible, use ``anonymize_struct`` which accepts a Python structure instead.
-- PII can still go through the filter, for instance, the variable names are not changed.
+- The Anonymizer is not a silver bullet and it's still possible to see PII going through the filters.
