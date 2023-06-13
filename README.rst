@@ -16,34 +16,53 @@ Library to clean up Ansible tasks from any Personally Identifiable Information (
 * Free software: Apache Software License 2.0
 
 
-Features
---------
+Usage
+-----
 
 The library can be used to remove the PII from a multi level structure:
 
-.. code-block::
+.. code-block:: python
 
-   $ python3
-   >>> from ansible_anonymizer import anonymizer
-   >>> example = [{"name": "foo bar", "email": "my-email@address.com"}]
-   >>> anonymizer.anonymize_struct(example)
-   ['- email: lucas27@example.com\n  name: foo bar\n']
+    from ansible_anonymizer.anonymizer import anonymize_struct
+
+    example = [{"name": "foo bar", "email": "my-email@address.com"}]
+
+    anonymize_struct(example)
+    # [{'name': 'foo bar', 'email': 'noah2@example.com'}]
 
 But you can also anonymize a block of text:
 
-.. code-block::
+.. code-block:: python
 
-   >>> from ansible_anonymizer import anonymizer
-   >>> some_text = """
-   ... - name: a task
-   ...   a_module:
-   ...     secret: foobar
-   ... """
-   >>> anonymizer.anonymize_text_block(some_text)
-   '\n- name: a task\n  a_module:\n    secret: {{ }}\n'
+    from ansible_anonymizer.anonymizer import anonymize_text_block
+
+    some_text = """
+    - name: a task
+      a_module:
+        secret: foobar
+    """
+
+    anonymize_text_block(some_text)
+    # '\n- name: a task\n  a_module:\n    secret: "{{ secret }}"\n'
 
 You can also use the ``ansible-anonymizer`` command:
 
 .. code-block:: console
 
    ansible-anonymizer my-secret-file
+
+Customize the anonymized strings
+================================
+
+By default, the variables are anonymized with a string based on the name of the field.
+You can customize it with the ``value_template`` parameter:
+
+.. code-block:: python
+
+    from ansible_anonymizer.anonymizer import anonymize_struct
+    from string import Template
+
+    original = {"password": "$RvEDSRW#R"}
+    value_template = Template("_${variable_name}_")
+    anonymize_struct(original, value_template=value_template)
+    #  {'password': '_password_'}

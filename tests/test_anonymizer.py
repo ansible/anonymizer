@@ -2,6 +2,7 @@
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-function-docstring
 from ipaddress import IPv4Address, IPv4Network, IPv6Address
+from string import Template
 from textwrap import dedent
 
 from ansible_anonymizer.anonymizer import (
@@ -42,7 +43,7 @@ def test_redact_ip_address():
     assert IPv4Address(redact_ip_address("8.8.8.9"))
 
 
-def test_anonymize_struct():
+def test_anonymize_struct_nested_struct():
     in_ = {
         "name": "Install nginx and nodejs 12",
         "apt": {"name": ["nginx", "nodejs"], "state": "latest"},
@@ -51,6 +52,8 @@ def test_anonymize_struct():
     }
     assert anonymize_struct(in_) == in_
 
+
+def test_anonymize_struct_ip_addresses():
     in_ = {
         "name": "foo@montreal.ca",
         "a_module": {
@@ -63,9 +66,13 @@ def test_anonymize_struct():
     assert "2001:460:48::888" not in changed["a_module"]["ip"]
     assert changed["a_module"]["password"] == "{{ password }}"
 
+
+def test_anonymize_multiple_passwords():
     in_ = {"password": ["first_password", "second_password"]}
     assert anonymize_struct(in_) == {"password": ["{{ password }}", "{{ password }}"]}
 
+
+def test_anonymize_email():
     # Str
     in_ = "my-email-address@somewhe.re"
     changed = anonymize_struct(in_)
@@ -81,7 +88,14 @@ def test_anonymize_struct():
     assert "@" in changed[0]
 
 
-def test_anonymize():
+def test_anonymize_with_special_template():
+    original = {"password": ["first_password", "second_password"]}
+    expected = {"password": ["ö", "ö"]}
+    value_template = Template("ö")
+    assert anonymize_struct(original, value_template=value_template) == expected
+
+
+def test_anonymize_deprecated_function():
     in_ = ["my-email-address@somewhe.re"]
     changed = anonymize(in_)
     assert in_ != changed
@@ -386,7 +400,9 @@ def test_anonymize_text_block_user_name():
 def test_anonymize_field():
     field = "my_field"
     value = "     a    "
-    assert anonymize_field(value, field) == value
+
+    value_template = Template("{{ $variable_name }}")
+    assert anonymize_field(value, field, value_template) == value
 
 
 def test_unquote():
@@ -401,10 +417,20 @@ def test_unquote():
 def test_anonymize_uuid_field():
     field = "uuid_field"
     value = "ce34efc1-f5e3-4b0f-bb2c-5272319589a7"
-    assert anonymize_field(value, field) == value
+    value_template = Template("{{ $variable_name }}")
+    assert anonymize_field(value, field, value_template) == value
 
     value = "CE34EFC1-F5E3-4B0F-BB2C-5272319589A7"
-    assert anonymize_field(value, field) == value
+    value_template = Template("{{ $variable_name }}")
+    assert anonymize_field(value, field, value_template) == value
+
+
+def test_anonymize_special_template():
+    field = "secret"
+    value = "to_hide"
+
+    value_template = Template("--${variable_name}--")
+    assert anonymize_field(value, field, value_template) == "--secret--"
 
 
 def test_hide_secrets_aws_profile():
@@ -471,6 +497,11 @@ def test_anonymize_text_block_quoted():
         anonymize_text_block('%wheel	ALL=(ALL)	PASSWD: "ALL"')
         == '%wheel	ALL=(ALL)	PASSWD: "{{ passwd }}"'  # noqa: E501
     )
+
+
+def test_anonymize_text_block_special_template():
+    value_template = Template("--")
+    assert anonymize_text_block('my_secret: "ÓÐG™ÉÓÖ"', value_template) == 'my_secret: "--"'
 
 
 def test_anonymize_text_block_preserve_protected_quotes():
