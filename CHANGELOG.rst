@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Version 1.4.1 (2023-06-14)
+-------------
+
+- fix to ensure anonymize_struct() uses the right value_template when it anoymizes a text blocks
+
 Version 1.4.0 (2023-06-13)
 -------------
 

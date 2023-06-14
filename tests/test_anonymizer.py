@@ -89,8 +89,9 @@ def test_anonymize_email():
 
 
 def test_anonymize_with_special_template():
-    original = {"password": ["first_password", "second_password"]}
-    expected = {"password": ["ö", "ö"]}
+    original = {"password": ["first_password", "second_password"], "block": 'password1: "bar"'}
+    expected = {"password": ["ö", "ö"], "block": 'password1: "ö"'}
+    value_template = Template("ö")
     value_template = Template("ö")
     assert anonymize_struct(original, value_template=value_template) == expected
 
