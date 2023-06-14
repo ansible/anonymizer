@@ -130,7 +130,7 @@ def anonymize_field(value: str, name: str, value_template: Template) -> str:
             return unquote(v)
         variable_name = str_jinja2_variable_name(name)
         return value_template.substitute(variable_name=variable_name)
-    return anonymize_text_block(value)
+    return anonymize_text_block(value, value_template=value_template)
 
 
 def anonymize_struct(o: Any, key_name: str = "", value_template: Optional[Template] = None) -> Any:
