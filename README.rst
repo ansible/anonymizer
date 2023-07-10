@@ -15,6 +15,18 @@ Library to clean up Ansible tasks from any Personally Identifiable Information (
 
 * Free software: Apache Software License 2.0
 
+Anonymized fields
+-----------------
+
+- Credit Card number
+- email address
+- IP address
+- MAC address
+- US SSN
+- US phone number
+- YAML comment
+- password value, when the field name is identified as being sensitive
+- user name from home directory path
 
 Usage
 -----
