@@ -1,8 +1,11 @@
 name: Python package
 
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   build:
@@ -13,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
@@ -23,3 +28,14 @@ jobs:
         python -m pip install tox tox-gh-actions
     - name: Test with tox
       run: tox
+    # See https://sonarsource.atlassian.net/browse/SONARPY-1203
+    - name: Fix paths in coverage file
+      run: |
+        sed -i 's/\/home\/runner\/work\/anonymizer\/anonymizer/\/github\/workspace\//g' coverage.xml
+    - name: SonarCloud scan
+      # skip sonarcloud scan from PRs from a fork
+      if: matrix.python-version == 3.11 && !(github.event.pull_request && github.event.pull_request.head.repo.fork)
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
