@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Parser for YAML-like structure that is error tolerant."""
+
 from collections.abc import Generator
 from enum import Enum
 from typing import Optional, Union
