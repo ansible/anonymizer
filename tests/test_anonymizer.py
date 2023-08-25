@@ -414,7 +414,9 @@ def test_anonymize_text_block_username_for_windows_path():
 
 def test_anonymize_text_block_username_as_jinja_template_for_linux_path():
     assert (
-        anonymize_text_block("path: /home/{{ admin_username | default('azureuser') }}/.ssh/authorized_keys")
+        anonymize_text_block(
+            "path: /home/{{ admin_username | default('azureuser') }}/.ssh/authorized_keys"
+        )
         == "path: /home/{{ admin_username | default('azureuser') }}/.ssh/authorized_keys"
     )
 

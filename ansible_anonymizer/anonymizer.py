@@ -298,8 +298,11 @@ def hide_user_name(block: str) -> str:
     }
 
     def _rewrite(m: re.Match[str]) -> str:
-        user = m.group("user_name") if (m.group("user_name") in known_users
-                                        or is_jinja2_expression(m.group("user_name"))) else "ano-user"
+        user = (
+            m.group("user_name")
+            if (m.group("user_name") in known_users or is_jinja2_expression(m.group("user_name")))
+            else "ano-user"
+        )
         return m.group("before") + user
 
     user_regexes = [
