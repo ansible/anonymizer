@@ -298,12 +298,13 @@ def hide_user_name(block: str) -> str:
     }
 
     def _rewrite(m: re.Match[str]) -> str:
-        user = m.group("user_name") if m.group("user_name") in known_users else "ano-user"
+        user = m.group("user_name") if (m.group("user_name") in known_users
+                                        or is_jinja2_expression(m.group("user_name"))) else "ano-user"
         return m.group("before") + user
 
     user_regexes = [
-        r"(?P<before>[c-z]:\\users\\)(?P<user_name>\w{,255})",
-        r"(?P<before>/(home|Users)/)(?P<user_name>[a-z0-9_-]{,255})",
+        r"(?P<before>[c-z]:\\users\\)(?P<user_name>([a-z0-9_-]|{{\s*.*?\s*}})\w{,255})",
+        r"(?P<before>/(home|Users)/)(?P<user_name>([a-z0-9_-]|{{\s*.*?\s*}})[a-z0-9_-]{,255})",
     ]
     for regex in user_regexes:
         block = re.sub(regex, _rewrite, block, flags=flags)
