@@ -306,8 +306,8 @@ def hide_user_name(block: str) -> str:
         return m.group("before") + user
 
     user_regexes = [
-        r"(?P<before>[c-z]:\\users\\)(?P<user_name>([a-z0-9_-]|{{\s*.*?\s*}})\w{,255})",
-        r"(?P<before>/(home|Users)/)(?P<user_name>([a-z0-9_-]|{{\s*.*?\s*}})[a-z0-9_-]{,255})",
+        r"(?P<before>[c-z]:\\users\\)(?P<user_name>(\w|{{\s*.*?\s*}}){,255})",
+        r"(?P<before>/(home|Users)/)(?P<user_name>([a-z0-9_-]|{{\s*.*?\s*}}){,255})",
     ]
     for regex in user_regexes:
         block = re.sub(regex, _rewrite, block, flags=flags)
