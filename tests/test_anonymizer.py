@@ -398,6 +398,36 @@ def test_anonymize_text_block_user_name():
     assert hide_user_name(dedent(source)) == dedent(expectation)
 
 
+def test_anonymize_text_block_username_for_linux_path():
+    assert (
+        anonymize_text_block("path: /home/kaisersoze/.ssh/authorized_keys")
+        == "path: /home/ano-user/.ssh/authorized_keys"
+    )
+
+
+def test_anonymize_text_block_username_for_windows_path():
+    assert (
+        anonymize_text_block("path: C:\\users\\kaisersoze\\test")
+        == "path: C:\\users\\ano-user\\test"
+    )
+
+
+def test_anonymize_text_block_username_as_jinja_template_for_linux_path():
+    assert (
+        anonymize_text_block(
+            "path: /home/{{ admin_username | default('azureuser') }}/.ssh/authorized_keys"
+        )
+        == "path: /home/{{ admin_username | default('azureuser') }}/.ssh/authorized_keys"
+    )
+
+
+def test_anonymize_text_block_username_as_jinja_template_for_windows_path():
+    assert (
+        anonymize_text_block("path: c:\\users\\{{ admin_username | default('azureuser') }}\\test")
+        == "path: c:\\users\\{{ admin_username | default('azureuser') }}\\test"
+    )
+
+
 def test_anonymize_field():
     field = "my_field"
     value = "     a    "
