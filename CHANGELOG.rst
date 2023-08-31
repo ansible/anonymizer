@@ -1,6 +1,12 @@
 Changelog
 =========
 
+Version 1.4.2 (2023-08-31)
+-------------
+
+- fix the user name anonymization in path definitions when a Jinja template is used instead of a user name
+
+
 Version 1.4.1 (2023-06-14)
 -------------
 
