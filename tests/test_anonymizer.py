@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-function-docstring
+# pylint: disable=R0801
 from ipaddress import IPv4Address, IPv4Network, IPv6Address
 from string import Template
 from textwrap import dedent
@@ -540,3 +541,22 @@ def test_anonymize_text_block_preserve_protected_quotes():
         anonymize_text_block('line: "%ansible password=\'foobar\'"')
         == 'line: "%ansible password=\'{{ password }}\'"'
     )
+
+
+def test_anonymize_multi_lines():
+    origin = """
+    foo: |
+      line1
+      line2
+    my_secret: |
+      line3
+      line4
+    """
+    expectation = """
+    foo: |
+      line1
+      line2
+    my_secret: "{{ my_secret }}"
+    """
+
+    assert anonymize_text_block(origin) == expectation
