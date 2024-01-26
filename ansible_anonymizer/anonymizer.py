@@ -18,7 +18,9 @@ from ansible_anonymizer.field_checks import (
     is_uuid_string,
 )
 from ansible_anonymizer.jinja2 import str_jinja2_variable_name
-from ansible_anonymizer.parser import NodeType, flatten, parse_raw_block
+from ansible_anonymizer.parser import flatten, parse_raw_block
+
+from .node import NodeType
 
 
 def gen_email_address(original: Match[str]) -> str:

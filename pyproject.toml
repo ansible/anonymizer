@@ -70,4 +70,10 @@ ignore = ["D107", "D203", "D212", "D100", "D103", "PGH003", "D401", "SIM114", "I
 "tests/test_anonymizer.py" = ["S101", "S105"]
 "tests/test_field_checks.py" = ["S101", "S105"]
 "tests/test_jinja2.py" = ["S101", "S105"]
+"tests/test_node.py" = ["S101", "S105"]
 "tests/test_parser.py" = ["S101", "S105"]
+"tests/test_parser_multi_lines.py" = ["S101", "S105"]
+
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = ["too-few-public-methods"]
