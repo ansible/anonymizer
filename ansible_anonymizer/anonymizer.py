@@ -8,7 +8,7 @@ from collections.abc import Generator
 from ipaddress import IPv4Address, IPv6Address
 from re import Match
 from string import Template
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional
 from zlib import crc32
 
 from ansible_anonymizer.field_checks import (
@@ -108,9 +108,9 @@ def redact_ipv6_address(value: IPv6Address) -> IPv6Address:
 
 def redact_ip_address(value: str) -> str:
     ip = ipaddress.ip_address(value)
-    func: Callable[[Union[IPv4Address | IPv6Address]], Union[IPv4Address | IPv6Address]]
-    func = {4: redact_ipv4_address, 6: redact_ipv6_address}[ip.version]  # type: ignore
-    return str(func(ip))
+    if ip.version == 4:
+        return str(redact_ipv4_address(ip))
+    return str(redact_ipv6_address(ip))
 
 
 def unquote(value: str) -> str:
@@ -176,9 +176,9 @@ def hide_ip_addresses(block: str) -> str:
             ip = ipaddress.ip_address(m.group("ip_address"))
         except ValueError:
             return m.group("ip_address")
-        func: Callable[[Union[IPv4Address | IPv6Address]], Union[IPv4Address | IPv6Address]]
-        func = {4: redact_ipv4_address, 6: redact_ipv6_address}[ip.version]  # type: ignore
-        return str(func(ip))
+        if ip.version == 4:
+            return str(redact_ipv4_address(ip))
+        return str(redact_ipv6_address(ip))
 
     return re.sub(
         r"(?P<ip_address>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|[a-f\d:]{3,32})",
@@ -326,7 +326,10 @@ def hide_secrets(block: str, value_template: Template) -> str:
                 # Already quoted
                 quote = ""
             else:
-                quote = "" if node.holder.text else '"'
+                quote = "" if node.holder and node.holder.text else '"'
+            if not node.secret_value_of:
+                # Should never happen
+                continue
             output += quote + anonymize_field("", node.secret_value_of.text, value_template) + quote
         else:
             output += node.text
