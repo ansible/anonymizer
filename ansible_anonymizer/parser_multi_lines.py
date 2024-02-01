@@ -87,7 +87,10 @@ def group_multi_lines(node: Node) -> None:
                     break
                 current.merge_with_next()
             current.type = NodeType.field
-            # The if statement that should always be True, used for mypy/pyright
+            # The if statement that should always be True because
+            # is_beginning_of_multiline_block() was used first,
+            # This is used for mypy/pyright to avoid the following error:
+            # "previous" is not a known member of "None"
             if current.previous and current.previous.previous:
                 current.secret_value_of = current.previous.previous.previous
         current = current.next
