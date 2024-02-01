@@ -1,6 +1,12 @@
 Changelog
 =========
 
+Version 1.5.0 (2024-02-01)
+-------------
+
+- Handle multilines blocks (#57)
+- Enforce the type checking with ``pyright`` in addition to ``mypy``
+
 Version 1.4.2 (2023-08-31)
 -------------
 
